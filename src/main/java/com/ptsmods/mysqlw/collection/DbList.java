@@ -1,0 +1,281 @@
+package com.ptsmods.mysqlw.collection;
+
+import com.ptsmods.mysqlw.Database;
+import com.ptsmods.mysqlw.query.QueryCondition;
+import com.ptsmods.mysqlw.query.QueryConditions;
+import com.ptsmods.mysqlw.query.QueryOrder;
+import com.ptsmods.mysqlw.query.SelectResults;
+import com.ptsmods.mysqlw.table.ColumnType;
+import com.ptsmods.mysqlw.table.TablePreset;
+import com.google.common.collect.ImmutableMap;
+
+import javax.annotation.Nonnull;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.logging.Level;
+
+public class DbList<E> extends AbstractList<E> implements DbCollection {
+
+    private static final TablePreset preset = TablePreset.create("list_")
+            .putColumn("id", ColumnType.INT.createStructure()
+                    .satiateSupplier(sup -> sup.apply(null))
+                    .setAutoIncrement(true)
+                    .setNullAllowed(false)
+                    .setPrimary(true))
+            .putColumn("val", ColumnType.TEXT.createStructure());
+    private static final Map<String, DbList<?>> cache = new HashMap<>();
+    private final Database db;
+    private final String table;
+    private final String name;
+    private final BiFunction<E, DbCollection, String> elementToString;
+    private final BiFunction<String, DbCollection, E> elementFromString;
+
+    /**
+     * Parses a String representation of a DbList into a DbList.
+     * @param db The database this list belongs to. Used when creating a new map.
+     * @param s The String to parse.
+     * @param elementToString The function used to convert an element of this list into a String. Used when creating a new list.
+     * @param elementFromString The function used to convert an element of this list into a String. Used when creating a new list.
+     * @param <E> The type of the elements in this set.
+     * @return A new DbList or a cached one if available.
+     */
+    public static <E> DbList<E> parseString(Database db, String s, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
+        return s.startsWith("DbList[name=") ? getList(db, Database.readQuotedString(s.substring("DbList[name=".length())), elementToString, elementFromString) : null;
+    }
+
+    /**
+     * Parses a String representation of a DbList into a DbList.
+     * @param db The database this list belongs to. Used when creating a new map.
+     * @param name The name of this list.
+     * @param elementToString The function used to convert an element of this list into a String. Used when creating a new list.
+     * @param elementFromString The function used to convert an element of this list into a String. Used when creating a new list.
+     * @param <E> The type of the elements in this set.
+     * @return A new DbList or a cached one if available.
+     */
+    public static <E> DbList<E> getList(Database db, String name, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
+        if (cache.containsKey(name))
+            try {
+                return (DbList<E>) cache.get(name);
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException("Wrong type! Cached DbList with the given name has a different type than requested.", e);
+            }
+        else return new DbList<>(db, name, elementToString, elementFromString);
+    }
+
+    private DbList(Database db, String name, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
+        if (cache.containsKey(name)) throw new IllegalArgumentException("A DbList by this name already exists.");
+        this.db = db;
+        this.table = "list_" + name;
+        this.name = name;
+        preset.setName(table).create(db);
+        this.elementToString = elementToString;
+        this.elementFromString = elementFromString;
+        cache.put(name, this);
+    }
+
+    @Override
+    public int size() {
+        return db.count(table, "val", null);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return size() == 0;
+    }
+
+    @Override
+    public boolean contains(Object o) {
+        try {
+            return db.selectRaw(table, "val", QueryCondition.equals("val", elementToString.apply((E) o, this)), null).next();
+        } catch (SQLException throwables) {
+            db.getLog().log(Level.FINER, "Could not check if DbMap contains key with table '" + table + "' on database '" + db.getName() + "'.", throwables);
+            return false;
+        }
+    }
+
+    @Nonnull
+    @Override
+    public Iterator<E> iterator() {
+        return toArrayList().iterator();
+    }
+
+    @Nonnull
+    @Override
+    public Object[] toArray() {
+        return toArrayList().toArray();
+    }
+
+    @Nonnull
+    @Override
+    public <T> T[] toArray(@Nonnull T[] a) {
+        return toArrayList().toArray(a);
+    }
+
+    @Override
+    public boolean add(E e) {
+        return db.insert(table, "val", elementToString.apply(e, this)) == 1;
+    }
+
+    @Override
+    public boolean remove(Object o) {
+        boolean b = db.delete(table, QueryCondition.equals("val", elementToString.apply((E) o, this))) > 0;
+        fixIndexes();
+        return b;
+    }
+
+    @Override
+    public boolean containsAll(@Nonnull Collection<?> c) {
+        QueryConditions condition = QueryConditions.create();
+        for (Object element : c)
+            condition.or(QueryCondition.equals("val", elementToString.apply((E) element, this)));
+        return db.select(table, new String[] {"val"}, condition, QueryOrder.by("id")).size() == c.size();
+    }
+
+    @Override
+    public boolean addAll(@Nonnull Collection<? extends E> c) {
+        List<Object[]> values = new ArrayList<>();
+        for (E element : c)
+            values.add(new Object[] {elementToString.apply(element, this)});
+        return db.insert(table, new String[] {"val"}, values) > 0;
+    }
+
+    @Override
+    public boolean addAll(int index, @Nonnull Collection<? extends E> c) {
+        List<E> list = toArrayList();
+        boolean b = list.addAll(index, c);
+        if (b) {
+            clear();
+            addAll(list);
+        }
+        return b;
+    }
+
+    @Override
+    public boolean removeAll(@Nonnull Collection<?> c) {
+        QueryConditions condition = QueryConditions.create();
+        for (Object o : c)
+            condition.or(QueryCondition.equals("val", elementToString.apply((E) o, this)));
+        int i = db.delete(table, condition);
+        fixIndexes();
+        return i > 0;
+    }
+
+    @Override
+    public boolean retainAll(@Nonnull Collection<?> c) {
+        List<E> list = toArrayList();
+        boolean b = list.retainAll(c);
+        clear();
+        addAll(list);
+        return b;
+    }
+
+    @Override
+    public void clear() {
+        db.truncate(table);
+    }
+
+    @Override
+    public E get(int index) {
+        SelectResults data = db.select(table, "val", QueryCondition.equals("id", index+1), QueryOrder.by("id"));
+        if (data.isEmpty()) throw exception(index, size());
+        else return elementFromString.apply(String.valueOf(data.get(0).get("val")), this);
+    }
+
+    @Override
+    public E set(int index, E element) {
+        checkIndex(index, size());
+        E val = get(index);
+        db.insertUpdate(table, new String[] {"id", "val"}, new Object[] {index+1, elementToString.apply(element, this)}, ImmutableMap.<String, Object>builder().put("val", elementToString.apply(element, this)).build());
+        return val;
+    }
+
+    @Override
+    public void add(int index, E element) {
+        List<E> list = toArrayList();
+        list.add(index, element);
+        clear();
+        addAll(list);
+    }
+
+    @Override
+    public E remove(int index) {
+        checkIndex(index, size());
+        E element = get(index);
+        db.delete(table, QueryCondition.equals("id", index+1));
+        fixIndexes();
+        return element;
+    }
+
+    @Override
+    public int indexOf(Object o) {
+        SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"));
+        return data.isEmpty() ? -1 : (Integer) data.get(0).get("id") - 1;
+    }
+
+    @Override
+    public int lastIndexOf(Object o) {
+        SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"));
+        return data.isEmpty() ? -1 : (Integer) data.get(data.size()-1).get("id") - 1;
+    }
+
+    @Nonnull
+    @Override
+    public ListIterator<E> listIterator() {
+        return toArrayList().listIterator();
+    }
+
+    @Nonnull
+    @Override
+    public ListIterator<E> listIterator(int index) {
+        return toArrayList().listIterator(index);
+    }
+
+    @Nonnull
+    @Override
+    public List<E> subList(int fromIndex, int toIndex) {
+        int size = size();
+        checkIndex(fromIndex, size);
+        checkIndex(toIndex, size);
+        List<E> list = new ArrayList<>();
+        for (int i = 0; i < toIndex; i++)
+            list.add(get(i));
+        return list;
+    }
+
+    @Override
+    public String toString() {
+        return "DbList[name='" + getName() + "',values=" + super.toString() + "]";
+    }
+
+    public Database getDb() {
+        return db;
+    }
+
+    @Override
+    public String getTable() {
+        return table;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public List<E> toArrayList() {
+        return Database.convertList(db.select(table, "val", null, QueryOrder.by("id")), map -> elementFromString.apply(String.valueOf(map.get("val")), this));
+    }
+
+    private void fixIndexes() {
+        List<E> elements = toArrayList();
+        clear();
+        addAll(elements);
+    }
+
+    private static void checkIndex(int index, int size) {
+        if (index >= size) throw exception(index, size);
+    }
+
+    private static IndexOutOfBoundsException exception(int index, int size) {
+        return new IndexOutOfBoundsException("Index: "+index+", Size: "+size);
+    }
+}
