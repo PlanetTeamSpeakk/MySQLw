@@ -165,7 +165,9 @@ Last we have any attributes the column might have, this could be anything and I 
 Next we have the real cool feature, database-backed collections.  
 These collections are just ordinary lists, sets or maps, but their values are never present on the VM, at least not in a significant way.  
 These classes were written with concurrent modifications and efficiency in mind. Two instances connected to the same database could edit the same list, set or map at the same time and there would not be an issue.  
-All DbCollection classes require functions to convert their elements or keys and values to and from Strings in order to be stored.
+
+All DbCollection classes require functions to convert their elements or keys and values to and from Strings in order to be stored.  
+Basic functions for this and a registry for your own can be found in the DbCF (Database Collection Functions) class.
 
 #### DbList
 This list works with a table with two columns in the background. One for an id and one for a value.  
