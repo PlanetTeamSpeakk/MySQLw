@@ -1,0 +1,9 @@
+sudo: true
+before_install:
+ - chmod +x gradlew
+ - sudo apt-get update -q
+ - sudo apt install openjfx
+script: echo "Done building"
+language: java
+jdk:
+  - openjdk8
