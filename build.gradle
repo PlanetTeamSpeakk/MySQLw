@@ -1,10 +1,11 @@
 plugins {
     id 'java'
-    id 'maven-publish'
+    id 'maven'
+    id 'signing'
 }
 
 group 'com.ptsmods'
-version '1.0'
+version '1.1'
 
 repositories {
     mavenLocal()
@@ -35,8 +36,55 @@ artifacts {
     archives javadocJar
 }
 
+signing {
+    sign configurations.archives
+}
+
 test {
     useJUnitPlatform()
 }
 
-//apply from: 'publish.gradle'
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom.project {
+                name 'MySQLw'
+                packaging 'jar'
+                artifactId 'MySQLw'
+                description 'A wrapper for MySQL connections'
+                url 'https://github.com/PlanetTeamSpeakk/MySQLw'
+
+                scm {
+                    connection 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    developerConnection 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    url 'https://github.com/PlanetTeamSpeakk/MySQLw'
+                }
+
+                licenses {
+                    license {
+                        name 'MIT License'
+                        url 'https://raw.githubusercontent.com/PlanetTeamSpeakk/MySQLw/main/LICENSE'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'PlanetTeamSpeak'
+                        name 'PlanetTeamSpeak'
+                        email 'PlanetTeamSpeakk@users.noreply.github.com'
+                    }
+                }
+            }
+        }
+    }
+}

@@ -33,7 +33,7 @@ class DatabaseTest {
 
     @Test
     void testMap() throws SQLException {
-        DbMap<String, Integer> map = DbMap.getMap(getDb(), "testmap", DbCF.strFunc, DbCF.fromIntFunc, DbCF.strFunc, DbCF.toIntFunc);
+        DbMap<String, Integer> map = DbMap.getMap(getDb(), "testmap", String.class, Integer.class);
         map.clear();
         assertEquals(0, map.size());
         map.put("testkey", 42);
@@ -46,7 +46,7 @@ class DatabaseTest {
 
     @Test
     void testList() throws SQLException {
-        DbList<String> list = DbList.getList(getDb(), "testlist", DbCF.strFunc, DbCF.strFunc);
+        DbList<String> list = DbList.getList(getDb(), "testlist", String.class);
         assertEquals(0, list.size());
         list.add("Hello");
         assertEquals(1, list.size());
@@ -60,7 +60,7 @@ class DatabaseTest {
 
     @Test
     void testSet() throws SQLException {
-        DbSet<String> set = DbSet.getSet(getDb(), "testset", DbCF.strFunc, DbCF.strFunc);
+        DbSet<String> set = DbSet.getSet(getDb(), "testset", String.class);
         assertEquals(0, set.size());
         set.add("hey");
         set.add("Hello");

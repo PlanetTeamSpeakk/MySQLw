@@ -1,5 +1,7 @@
 package com.ptsmods.mysqlw.collection;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.QueryConditions;
@@ -7,13 +9,10 @@ import com.ptsmods.mysqlw.query.QueryOrder;
 import com.ptsmods.mysqlw.query.SelectResults;
 import com.ptsmods.mysqlw.table.ColumnType;
 import com.ptsmods.mysqlw.table.TablePreset;
-import com.google.common.collect.ImmutableMap;
 
 import javax.annotation.Nonnull;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.function.BiFunction;
-import java.util.logging.Level;
 
 public class DbList<E> extends AbstractList<E> implements DbCollection {
 
@@ -48,6 +47,18 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
      * Parses a String representation of a DbList into a DbList.
      * @param db The database this list belongs to. Used when creating a new map.
      * @param name The name of this list.
+     * @param type The Class of type E if you've registered a type converter on {@link DbCF}. Used when creating a new list.
+     * @param <E> The type of the elements in this set.
+     * @return A new DbList or a cached one if available.
+     */
+    public static <E> DbList<E> getList(Database db, String name, Class<E> type) {
+        return getList(db, name, DbCF.getTo(type), DbCF.getFrom(type));
+    }
+
+    /**
+     * Parses a String representation of a DbList into a DbList.
+     * @param db The database this list belongs to. Used when creating a new map.
+     * @param name The name of this list.
      * @param elementToString The function used to convert an element of this list into a String. Used when creating a new list.
      * @param elementFromString The function used to convert an element of this list into a String. Used when creating a new list.
      * @param <E> The type of the elements in this set.
@@ -65,6 +76,9 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     private DbList(Database db, String name, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
         if (cache.containsKey(name)) throw new IllegalArgumentException("A DbList by this name already exists.");
+        Preconditions.checkNotNull(db, "database");
+        Preconditions.checkNotNull(elementToString, "elementToString");
+        Preconditions.checkNotNull(elementFromString, "elementFromString");
         this.db = db;
         this.table = "list_" + name;
         this.name = name;
@@ -86,12 +100,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     @Override
     public boolean contains(Object o) {
-        try {
-            return db.selectRaw(table, "val", QueryCondition.equals("val", elementToString.apply((E) o, this)), null).next();
-        } catch (SQLException throwables) {
-            db.getLog().log(Level.FINER, "Could not check if DbMap contains key with table '" + table + "' on database '" + db.getName() + "'.", throwables);
-            return false;
-        }
+        return db.select(table, "val", QueryCondition.equals("val", elementToString.apply((E) o, this)), null).size() > 0;
     }
 
     @Nonnull

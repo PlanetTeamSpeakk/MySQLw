@@ -1,5 +1,6 @@
 package com.ptsmods.mysqlw.collection;
 
+import com.google.common.base.Preconditions;
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.QueryConditions;
@@ -33,8 +34,20 @@ public class DbSet<E> implements Set<E>, DbCollection {
         return s.startsWith("DbSet[name=") ? getSet(db, Database.readQuotedString(s.substring("DbSet[name=".length())), elementToString, elementFromString) : null;
     }
 
+    /**
+     * Gets a set from cache or creates a new one.
+     * @param db The database this set belongs to. Used when creating a new map.
+     * @param name The name of this set.
+     * @param type The Class of type E if you've registered a type converter on {@link DbCF}. Used when creating a new set.
+     * @param <E> The type of the elements in this set.
+     * @return A new DbSet or a cached one if available.
+     */
+    public static <E> DbSet<E> getSet(Database db, String name, Class<E> type) {
+        return getSet(db, name, DbCF.getTo(type), DbCF.getFrom(type));
+    }
+
      /**
-     * Parses a String representation of a DbSet into a DbSet.
+     * Gets a set from cache or creates a new one.
      * @param db The database this map belongs to. Used when creating a new map.
      * @param name The name of this set.
      * @param elementToString The function used to convert an element of this set into a String. Used when creating a new set.
@@ -54,6 +67,9 @@ public class DbSet<E> implements Set<E>, DbCollection {
 
     private DbSet(Database db, String name, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
         if (cache.containsKey(name)) throw new IllegalArgumentException("A DbList by this name already exists.");
+        Preconditions.checkNotNull(db, "database");
+        Preconditions.checkNotNull(elementToString, "elementToString");
+        Preconditions.checkNotNull(elementFromString, "elementFromString");
         this.db = db;
         this.table = "set_" + name;
         this.name = name;

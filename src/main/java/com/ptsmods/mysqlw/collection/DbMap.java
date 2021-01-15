@@ -1,5 +1,6 @@
 package com.ptsmods.mysqlw.collection;
 
+import com.google.common.base.Preconditions;
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.SelectResults;
@@ -9,10 +10,8 @@ import com.ptsmods.mysqlw.table.TablePreset;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.function.BiFunction;
-import java.util.logging.Level;
 
 public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
 
@@ -52,12 +51,26 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
      * Gets a map from cache or creates a new one.
      * @param db The database this map belongs to. Used when creating a new map.
      * @param name The name of this map.
+     * @param keyType The class of the type of the keys in this map, registered at {@link DbCF}. Used when creating a new map.
+     * @param valueType The class of the type of the values in this map, registered at {@link DbCF}. Used when creating a new map.
+     * @param <K> The type of the keys in this map.
+     * @param <V> The type of the values in this map.
+     * @return A new DbMap or a cached one if available.
+     */
+    public static <K, V> DbMap<K, V> getMap(Database db, String name, Class<K> keyType, Class<V> valueType) {
+        return getMap(db, name, DbCF.getTo(keyType), DbCF.getTo(valueType), DbCF.getFrom(keyType), DbCF.getFrom(valueType));
+    }
+
+    /**
+     * Gets a map from cache or creates a new one.
+     * @param db The database this map belongs to. Used when creating a new map.
+     * @param name The name of this map.
      * @param keyToString The function used to convert a key object of this map into a String. Used when creating a new map.
      * @param valueToString The function used to convert a value object of this map into a String. Used when creating a new map.
      * @param keyFromString The function used to convert a String into a key object of this map. Used when creating a new map.
      * @param valueFromString The function used to convert a String into a value object of this map. Used when creating a new map.
-     * @param <K> The key type of this map.
-     * @param <V> The value type of this map.
+     * @param <K> The type of the keys in this map.
+     * @param <V> The type of the values in this map.
      * @return A new DbMap or a cached one if available.
      */
     public static <K, V> DbMap<K, V> getMap(Database db, String name, BiFunction<K, DbCollection, String> keyToString, BiFunction<V, DbCollection, String> valueToString, BiFunction<String, DbCollection, K> keyFromString, BiFunction<String, DbCollection, V> valueFromString) {
@@ -72,6 +85,11 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
 
     private DbMap(Database db, String name, BiFunction<K, DbCollection, String> keyToString, BiFunction<V, DbCollection, String> valueToString, BiFunction<String, DbCollection, K> keyFromString, BiFunction<String, DbCollection, V> valueFromString) {
         if (cache.containsKey(name)) throw new IllegalArgumentException("A DbMap by this name already exists.");
+        Preconditions.checkNotNull(db, "database");
+        Preconditions.checkNotNull(keyToString, "keyToString");
+        Preconditions.checkNotNull(keyFromString, "keyFromString");
+        Preconditions.checkNotNull(valueToString, "valueToString");
+        Preconditions.checkNotNull(valueFromString, "valueFromString");
         this.db = db;
         this.table = "map_" + name;
         this.name = name;
@@ -98,22 +116,12 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
 
     @Override
     public boolean containsKey(Object key) {
-        try {
-            return db.selectRaw(table, "m_key", QueryCondition.equals("m_key", keyToString.apply((K) key, this)), null).next();
-        } catch (SQLException throwables) {
-            db.getLog().log(Level.FINER, "Could not check if DbMap contains key with table '" + table + "' on database '" + db.getName() + "'.", throwables);
-            return false;
-        }
+        return db.select(table, "m_key", QueryCondition.equals("m_key", keyToString.apply((K) key, this)), null).size() > 0;
     }
 
     @Override
     public boolean containsValue(Object value) {
-        try {
-            return db.selectRaw(table, "m_val", QueryCondition.equals("m_val", value == null ? null : valueToString.apply((V) value, this)), null).next();
-        } catch (SQLException throwables) {
-            db.getLog().log(Level.FINER, "Could not check if DbMap contains value with table '" + table + "' on database '" + db.getName() + "'.", throwables);
-            return false;
-        }
+        return db.select(table, "m_val", QueryCondition.equals("m_val", value == null ? null : valueToString.apply((V) value, this)), null).size() > 0;
     }
 
     @Override

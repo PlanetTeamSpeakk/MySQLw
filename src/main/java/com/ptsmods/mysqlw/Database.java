@@ -43,6 +43,7 @@ public class Database {
 
     private final Connection con;
     private final Logger log;
+    private boolean doLog = true;
     private final String cachedName;
 
     private Database(Connection con, String name) {
@@ -55,6 +56,14 @@ public class Database {
         return log;
     }
 
+    public boolean doLog() {
+        return doLog;
+    }
+    
+    public void setLogging(boolean doLog) {
+        this.doLog = doLog;
+    }
+
     /**
      * Attempts to get the name of the database currently in use.
      * @return The name of the currently in use database, or the cached name if it could not be gotten.
@@ -63,7 +72,7 @@ public class Database {
         try {
             return con.getCatalog();
         } catch (SQLException throwables) {
-            log.log(Level.FINER, "Error getting database name on database " + cachedName + ".", throwables);
+            if (doLog) log.log(Level.FINER, "Error getting database name on database " + cachedName + ".", throwables);
             return cachedName;
         }
     }
@@ -85,7 +94,7 @@ public class Database {
         try {
             return con.createStatement();
         } catch (SQLException throwables) {
-            log.log(Level.FINER, "Error creating statement on database " + getName() + ".", throwables);
+            if (doLog) log.log(Level.FINER, "Error creating statement on database " + getName() + ".", throwables);
             return null;
         }
     }
@@ -105,7 +114,7 @@ public class Database {
             set.getStatement().close();
             return i;
         } catch (SQLException throwables) {
-            log.log(Level.FINER, "Error while counting.", throwables);
+            if (doLog) log.log(Level.FINER, "Error while counting.", throwables);
             return -1;
         }
     }
@@ -194,7 +203,7 @@ public class Database {
                 }
                 set.getStatement().close();
             } catch (SQLException e) {
-                log.log(Level.FINER, "Error iterating through results from table '" + table + "'.", e);
+                if (doLog) log.log(Level.FINER, "Error iterating through results from table '" + table + "'.", e);
             }
         return new SelectResults(this, table, columns, condition, order, result);
     }
@@ -251,7 +260,7 @@ public class Database {
      * @return The amount of rows affected.
      * @see #insertUpdate(String, String[], Object[], Map)
      */
-    public int insertUpdate(String table, String column, String value, String duplicateValue) {
+    public int insertUpdate(String table, String column, String value, Object duplicateValue) {
         return insertUpdate(table, new String[] {column}, new String[] {value}, ImmutableMap.<String, Object>builder().put(column, duplicateValue).build());
     }
 
@@ -275,7 +284,7 @@ public class Database {
         try (Statement stmt = createStatement()) {
             return stmt.executeUpdate(query.toString());
         } catch (SQLException e) {
-            log.log(Level.FINER, "Error executing '" + query + "' on database " + getName() + ".", e);
+            if (doLog) log.log(Level.FINER, "Error executing '" + query + "' on database " + getName() + ".", e);
             return 0;
         }
     }
@@ -377,7 +386,7 @@ public class Database {
         try (Statement statement = createStatement()) {
             return statement.execute(query);
         } catch (SQLException e) {
-            log.log(Level.FINER, "Error executing '" + query + "' on database " + getName() + ".", e);
+            if (doLog) log.log(Level.FINER, "Error executing '" + query + "' on database " + getName() + ".", e);
             return false;
         }
     }
@@ -391,7 +400,7 @@ public class Database {
         try (Statement statement = createStatement()) {
             return statement.executeUpdate(query);
         } catch (SQLException e) {
-            log.log(Level.FINER, "Error executing update '" + query + "' on database " + getName() + ".", e);
+            if (doLog) log.log(Level.FINER, "Error executing update '" + query + "' on database " + getName() + ".", e);
             return -1;
         }
     }
@@ -410,7 +419,7 @@ public class Database {
             statement.closeOnCompletion();
             return statement.getResultSet();
         } catch (SQLException e) {
-            log.log(Level.FINER, "Error executing query '" + query + "' on database " + getName() + ".", e);
+            if (doLog) log.log(Level.FINER, "Error executing query '" + query + "' on database " + getName() + ".", e);
             return null;
         }
     }
@@ -441,7 +450,7 @@ public class Database {
             set.getStatement().close();
             return b;
         } catch (SQLException throwables) {
-            log.log(Level.FINER, "Error checking if table " + enquote(name) + " exists on database " + getName() + ".", throwables);
+            if (doLog) log.log(Level.FINER, "Error checking if table " + enquote(name) + " exists on database " + getName() + ".", throwables);
             return false;
         }
     }
