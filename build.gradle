@@ -36,10 +36,6 @@ artifacts {
     archives javadocJar
 }
 
-signing {
-    sign configurations.archives
-}
-
 test {
     useJUnitPlatform()
 }
