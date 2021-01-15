@@ -2,6 +2,7 @@
 
 [![Latest release](https://img.shields.io/github/release/PlanetTeamSpeakk/MySQLw.svg)](https://github.com/PlanetTeamSpeakk/MySQLw/releases/latest)
 [![Build Status](https://travis-ci.org/PlanetTeamSpeakk/MySQLw.svg?branch=master)](https://travis-ci.org/PlanetTeamSpeakk/MySQLw)
+### Link to [Javadoc](https://mysqlw.ptsmods.com)
 
 A wrapper for MySQL connections for Java to make your life a lot easier and a lot saner when working with queries.  
 This library is merely a wrapper for the default Java SQL library intended to be used with MySQL (or MariaDB for that matter), this means that you also need the MySQL Java connector to actually connect to your database.
