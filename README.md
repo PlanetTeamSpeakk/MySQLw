@@ -1,7 +1,7 @@
 # MySQLw
 
 [![Latest release](https://img.shields.io/github/release/PlanetTeamSpeakk/MySQLw.svg)](https://github.com/PlanetTeamSpeakk/MySQLw/releases/latest)
-[![Build Status](https://travis-ci.org/PlanetTeamSpeakk/MySQLw.svg?branch=master)](https://travis-ci.org/PlanetTeamSpeakk/MySQLw)
+[![Build Status](https://api.travis-ci.org/PlanetTeamSpeakk/MySQLw.svg)](https://travis-ci.org/PlanetTeamSpeakk/MySQLw)
 ### Link to [Javadoc](https://mysqlw.ptsmods.com)
 
 A wrapper for MySQL connections for Java to make your life a lot easier and a lot saner when working with queries.  
@@ -25,7 +25,7 @@ This library is merely a wrapper for the default Java SQL library intended to be
 ### Gradle
 To add MySQLw to your Gradle project, add the following line to your dependencies:
 ```gradle
-compile 'com.ptsmods:MySQLw:1.0'
+compile 'com.ptsmods:MySQLw:1.1'
 ```
 
 ### Maven
@@ -34,7 +34,7 @@ To add MySQLw to your Maven project, add the following code segment to your pom.
 <dependency>
   <groupId>com.ptsmods</groupId>
   <artifactId>MySQLw</artifactId>
-  <version>1.0</version>
+  <version>1.1</version>
 </dependency>
 ```
 
@@ -184,8 +184,36 @@ Just like your usual set, this set does not allow null or duplicate values and i
 A database-backed map, what else is there to say?  
 Oh yeah, the table backing this map consists of two columns, on being the key with a type of VARCHAR(255), keep that maximum length in mind, the other being the value with a type of TEXT.  
 
+#### Creating database-backed collections
+Getting an instance of a DbList or a DbSet is more or less the same except for lists the method signature is `DbList#getList(Database, String, Class)` while for sets it's `DbSet#getSet(Database, String, Class)`, but you pass them the same parameters.  
+Getting a new list is thus done as follows:
+```java
+List<String> list = DbList.getList(db, "testlist", String.class);
+```
+In this method, the parameters are in order: the database this list is on, the name of this list (used to determine the table name which is 'list_' + name) and the class of the type of this list.  
+The last paremeter can be any class you like so long as it has type converters registered with `DbCF#registerConverters(Class, BiFunction, BiFunction)`.  
+By default all basic Java types (String, Byte, Short, Integer, Long, Float and Double) are registered.  
+You can, however, also nest DbLists, DbSets and DbMaps, to do so, you need to acquire their respective converters using the methods in the DbCF class.  
+These methods are:
+  - `dbListToStringFunc()`
+  - `dbListFromStringFunc(Class)`
+  - `dbListFromStringFunc(BiFunction, BiFunction)`
+  - `dbSetToStringFunc()`
+  - `dbSetFromStringFunc(Class)`
+  - `dbSetFromStringFunc(BiFunction, BiFunction)`
+  - `dbMapToStringFunc()`
+  - `dbMapFromStringFunc(Class, Class)`
+  - `dbMapFromStringFunc(BiFunction, BiFunction, BiFunction, BiFunction)`  
+Note that the methods that require classes can only be used if those classes have registered type converters.  
+
+Creating a DbMap is nearly the same as creating a DbList or DbSet, except you pass two types or two pairs of type converters.  
+An example would be:
+```
+Map<String, Integer> map = DbMap.getMap(db, "testmap", String.class, Integer.class);
+```
+
 ### Type conversion
-By default, MySQLw can use a null value, any type of Number, String or byte array (in hex String representation) in queries, but to do so, it must first prepare them.  
+By default, MySQLw can use a null value, any type of Number, String or byte array (it is converted to hex String representation) in queries, but to do so, it must first prepare them.  
 This preparation is known as type conversion. To register your own type converter so you can put for example entire lists into a column, use the `Database#registerTypeConverter(Class, Function)` method.
 An example of a type converter would be:
 ```java
@@ -198,6 +226,7 @@ Using this newly added type converter is as simple as just passing it as a value
 db.insert("data", "value", Lists.newArrayList("This is a JSON list", "with numerous values", "How neat!"));
 ```
 Which would put the string `'["This is a JSON list", "with numerous values", "How neat!"]'` into the query.
+Do not forget that enquoting is mandatory whenever you insert anything as a literal String into a table, not doing so will end up in SQLExceptions.
 
 ### Other smaller features
 #### Counting
