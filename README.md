@@ -2,6 +2,7 @@
 
 [![Latest release](https://img.shields.io/github/release/PlanetTeamSpeakk/MySQLw.svg)](https://github.com/PlanetTeamSpeakk/MySQLw/releases/latest)
 [![Build Status](https://api.travis-ci.org/PlanetTeamSpeakk/MySQLw.svg)](https://travis-ci.org/PlanetTeamSpeakk/MySQLw)
+![Lines of code](https://img.shields.io/tokei/lines/github/PlanetTeamSpeakk/MySQLw?color=%23fe7d37)
 ### Link to [Javadoc](https://mysqlw.ptsmods.com)
 
 A wrapper for MySQL connections for Java to make your life a lot easier and a lot saner when working with queries.  
