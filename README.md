@@ -182,7 +182,7 @@ Just like your usual set, this set does not allow null or duplicate values and i
 
 #### DbMap
 A database-backed map, what else is there to say?  
-Oh yeah, the table backing this map consists of two columns, on being the key with a type of VARCHAR(255), keep that maximum length in mind, the other being the value with a type of TEXT.  
+Oh yeah, the table backing this map consists of two columns, one being the key with a type of VARCHAR(255), keep that maximum length in mind, the other being the value with a type of TEXT.  
 
 #### Creating database-backed collections
 Getting an instance of a DbList or a DbSet is more or less the same except for lists the method signature is `DbList#getList(Database, String, Class)` while for sets it's `DbSet#getSet(Database, String, Class)`, but you pass them the same parameters.  
