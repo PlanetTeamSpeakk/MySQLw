@@ -6,7 +6,7 @@
 ### Link to [Javadoc](https://mysqlw.ptsmods.com)
 
 A wrapper for MySQL and SQLite (beta) connections for Java to make your life a lot easier and a lot saner when working with queries.  
-This library is merely a wrapper for the default Java SQL library intended to be used with MySQL (or MariaDB for that matter) or SQLite, this means that you also need the MySQL Java connector or the SQLite Java connector to actually connect to your database, but the `Database#loadConnector(RDBMS, File, boolean)` method allows you to do so at runtime.
+This library is merely a wrapper for the default Java SQL library intended to be used with MySQL (or MariaDB for that matter) or SQLite, this means that you also need the MySQL Java connector or the SQLite Java connector to actually connect to your database, but the `Database#loadConnector(RDBMS, File, boolean)` method allows you to add it at runtime.
 
 * [Adding MySQLw to your project](#adding-mysqlw-to-your-project)
   + [Gradle](#gradle)
