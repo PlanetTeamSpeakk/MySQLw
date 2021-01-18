@@ -5,10 +5,7 @@ import com.ptsmods.mysqlw.Database;
 import com.google.common.collect.ImmutableMap;
 import javafx.util.Pair;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TablePreset {
 
@@ -17,7 +14,7 @@ public class TablePreset {
     }
 
     private final Map<String, ColumnStructure<?>> columns = new LinkedHashMap<>();
-    private final List<TableIndex> indices = new ArrayList<>();
+    private final Map<TableIndex.TableIndexType, TableIndex> indices = new HashMap<>();
     private String name;
 
     private TablePreset(String name) {
@@ -49,12 +46,12 @@ public class TablePreset {
     }
 
     public TablePreset addIndex(TableIndex index) {
-        indices.add(index);
+        indices.put(index.getType(), index);
         return this;
     }
 
     public TablePreset removeIndex(TableIndex index) {
-        indices.remove(index);
+        indices.remove(index.getType());
         return this;
     }
 
@@ -62,12 +59,16 @@ public class TablePreset {
         return ImmutableMap.copyOf(columns);
     }
 
-    public Map<String, String> build() {
-        return ImmutableMap.copyOf(Database.convertMap(columns, entry -> new Pair<>(entry.getKey(), entry.getValue().toString())));
+    public Map<String, String> build(Database.RDBMS type) {
+        return ImmutableMap.copyOf(Database.convertMap(columns, entry -> new Pair<>(entry.getKey(), entry.getValue().toString(type))));
     }
 
     public List<TableIndex> getIndices() {
-        return ImmutableList.copyOf(indices);
+        return ImmutableList.copyOf(indices.values());
+    }
+
+    public TableIndex getIndex(TableIndex.TableIndexType type) {
+        return indices.get(type);
     }
 
     public TablePreset create(Database db) {
@@ -78,7 +79,7 @@ public class TablePreset {
     public TablePreset clone() {
         TablePreset clone = new TablePreset(name);
         clone.putAll(Database.convertMap(columns, entry -> new Pair<>(entry.getKey(), entry.getValue().clone())));
-        clone.indices.addAll(Database.convertList(indices, TableIndex::clone));
+        clone.indices.putAll(Database.convertMap(indices, entry -> new Pair<>(entry.getKey(), entry.getValue().clone())));
         return clone;
     }
 

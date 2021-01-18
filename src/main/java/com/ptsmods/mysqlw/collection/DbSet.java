@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.function.BiFunction;
 
-public class DbSet<E> implements Set<E>, DbCollection {
+public class DbSet<E> extends AbstractSet<E> implements DbCollection {
 
     private static final TablePreset preset = TablePreset.create("set_").putColumn("value", ColumnType.VARCHAR.createStructure().satiateSupplier(sup -> sup.apply(255)).setPrimary(true).setNullAllowed(false).setUnique(true));
     private static final Map<String, DbSet<?>> cache = new HashMap<>();

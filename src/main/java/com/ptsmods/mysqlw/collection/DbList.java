@@ -82,7 +82,9 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         this.db = db;
         this.table = "list_" + name;
         this.name = name;
-        preset.setName(table).create(db);
+        preset.setName(table);
+        if (db.getType() == Database.RDBMS.SQLite) preset.getColumns().get("id").setTypeString(db.getType() == Database.RDBMS.SQLite ? "INTEGER" : "INT");
+        preset.create(db);
         this.elementToString = elementToString;
         this.elementFromString = elementFromString;
         cache.put(name, this);
@@ -182,6 +184,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
     @Override
     public void clear() {
         db.truncate(table);
+        if (db.getType() == Database.RDBMS.SQLite) db.delete("sqlite_sequence", QueryCondition.equals("name", table));
     }
 
     @Override
@@ -195,7 +198,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
     public E set(int index, E element) {
         checkIndex(index, size());
         E val = get(index);
-        db.insertUpdate(table, new String[] {"id", "val"}, new Object[] {index+1, elementToString.apply(element, this)}, ImmutableMap.<String, Object>builder().put("val", elementToString.apply(element, this)).build());
+        db.insertUpdate(table, new String[] {"id", "val"}, new Object[] {index+1, elementToString.apply(element, this)}, ImmutableMap.<String, Object>builder().put("val", elementToString.apply(element, this)).build(), "id");
         return val;
     }
 

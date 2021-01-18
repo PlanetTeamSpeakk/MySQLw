@@ -10,10 +10,13 @@ import com.google.common.collect.Lists;
 import javafx.util.Pair;
 import org.apache.commons.codec.binary.Hex;
 
-import java.io.IOException;
-import java.io.StreamTokenizer;
-import java.io.StringReader;
-import java.lang.reflect.Type;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.net.URLConnection;
 import java.sql.*;
 import java.util.*;
 import java.util.function.Function;
@@ -23,6 +26,89 @@ import java.util.logging.Logger;
 public class Database {
 
     private static final Map<Class<?>, Function<Object, String>> classConverters = new HashMap<>();
+
+    /**
+     * Downloads the latest version of the connector for the given type and adds it to the classpath.<br>
+     * It is not recommended you rely on this, but if, for example, you offer your users a choice whether
+     * to use MySQL or SQLite and you do not want to make your jar file huge, there is always this option.
+     * @param type The type of the connector to download.
+     * @param file The file to download to.
+     * @param useCache Whether or not to use a cached file if the given file already exists. If the given file does not appear to be a connector of the given type, a new version will be downloaded nonetheless.
+     * @throws IllegalArgumentException If the given type is {@link RDBMS#UNKNOWN}.
+     * @throws IOException If anything went wrong while downloading the file.
+     */
+    public static void loadConnector(RDBMS type, File file, boolean useCache) throws IOException {
+        if (type == RDBMS.UNKNOWN) throw new IllegalArgumentException("The type cannot be UNKNOWN.");
+        else {
+            String versionCheck = null;
+            switch (type) {
+                case MySQL:
+                    if (useCache && checkAndAdd(file, type, "com.mysql.cj.Session")) return;
+                    versionCheck = "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml";
+                    break;
+                case SQLite:
+                    if (useCache && checkAndAdd(file, type, "org.sqlite.core.Codes")) return;
+                    versionCheck = "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml";
+                    break;
+            }
+            URL versionCheckUrl = new URL(versionCheck);
+            URLConnection connection = versionCheckUrl.openConnection();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String line;
+            String latestVersion = null;
+            while ((line = reader.readLine()) != null) if (line.trim().startsWith("<version>") && line.endsWith("</version>")) latestVersion = line.trim().substring("<version>".length(), line.trim().length() - "</version>".length());
+            reader.close();
+            String downloadUrl = null;
+            switch (type) {
+                case MySQL:
+                    downloadUrl = "https://repo1.maven.org/maven2/mysql/mysql-connector-java/" + latestVersion + "/mysql-connector-java-" + latestVersion + ".jar";
+                    break;
+                case SQLite:
+                    downloadUrl = "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/" + latestVersion + "/sqlite-jdbc-" + latestVersion + ".jar";
+                    break;
+            }
+            try (BufferedInputStream in = new BufferedInputStream(new URL(downloadUrl).openStream());
+                 FileOutputStream out = new FileOutputStream(file)) {
+                byte[] buf = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = in.read(buf, 0, 1024)) != -1)
+                    out.write(buf, 0, bytesRead);
+            }
+            addToClassPath(file);
+        }
+    }
+
+    private static void addToClassPath(File file) {
+        URLClassLoader classLoader = (URLClassLoader)ClassLoader.getSystemClassLoader();
+        Method method;
+        try {
+            method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+        } catch (NoSuchMethodException ignored) {return;} // Impossible
+        method.setAccessible(true);
+        try {
+            method.invoke(classLoader, file.toURI().toURL());
+        } catch (IllegalAccessException | InvocationTargetException | MalformedURLException e) { // Shouldn't happen, but who knows?
+            e.printStackTrace();
+        }
+    }
+
+    private static boolean classExists(String name) {
+        try {
+            Class.forName(name);
+            return true;
+        } catch (ClassNotFoundException ignored) {}
+        return false;
+    }
+
+    private static boolean checkAndAdd(File file, RDBMS type, String className) throws IOException {
+        if (classExists(className)) return true;
+        else if (file.exists()) {
+            addToClassPath(file);
+            if (!classExists(className)) loadConnector(type, file, false);
+            return true;
+        }
+        return false;
+    }
 
     /**
      * Makes a connection to a MySQL database.
@@ -35,18 +121,47 @@ public class Database {
      * @throws SQLException If an error occurred while either connecting or creating the database.
      */
     public static Database connect(String host, int port, String name, String username, String password) throws SQLException {
-        Database db = new Database(DriverManager.getConnection("jdbc:mysql://" + host + ":" + port, username, password), name);
+        Database db = new Database(RDBMS.MySQL, DriverManager.getConnection("jdbc:mysql://" + host + ":" + port, username, password), name);
         db.execute("CREATE DATABASE IF NOT EXISTS " + name + ";"); // Create database if it does not yet exist.
         db.getConnection().setCatalog(name);
         return db;
     }
 
+    /**
+     * Makes a new connection to an SQLite database or creates it if it does not yet exist.
+     * @param file The database file to connect to.
+     * @return A Database with which you can do anything.
+     * @throws SQLException If an error occurred while either connecting or creating the database.
+     */
+    public static Database connect(File file) throws SQLException {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Could not find SQLite connector on classpath, is it loaded?", e);
+        }
+        return new Database(RDBMS.SQLite, DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath()), file.getName().substring(file.getName().lastIndexOf('.')));
+    }
+
+    /**
+     * Wraps an SQL connection in a Database. Allows you to connect to any type of database.<br>
+     * <p style="font-size: 20px; font-weight: bold; color: red;">THIS FEATURE IS UNSUPPORTED.</p>
+     * @param connection The connection to wrap.
+     * @return A new, probably unstable, Database.
+     * @see #connect(String, int, String, String, String)
+     * @see #connect(File)
+     */
+    public static Database connect(Connection connection) {
+        return new Database(RDBMS.UNKNOWN, connection, "UNKNOWN");
+    }
+
+    private final RDBMS type;
     private final Connection con;
     private final Logger log;
     private boolean doLog = true;
     private final String cachedName;
 
-    private Database(Connection con, String name) {
+    private Database(RDBMS type, Connection con, String name) {
+        this.type = type;
         this.con = con;
         log = Logger.getLogger("Database-" + name);
         cachedName = name;
@@ -62,6 +177,10 @@ public class Database {
     
     public void setLogging(boolean doLog) {
         this.doLog = doLog;
+    }
+
+    public RDBMS getType() {
+        return type;
     }
 
     /**
@@ -125,7 +244,8 @@ public class Database {
      * @see #delete(String, QueryCondition)
      */
     public void truncate(String table) {
-        execute("TRUNCATE " + table + ";");
+        if (getType() == RDBMS.SQLite) delete(table, null); // No truncate statement in SQLite.
+        else execute("TRUNCATE " + table + ";");
     }
 
     /**
@@ -192,20 +312,7 @@ public class Database {
      * @return Parsed data in the form of {@link SelectResults}.
      */
     public SelectResults select(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order) {
-        ResultSet set = selectRaw(table, columns, condition, order);
-        List<Map<String, Object>> result = new ArrayList<>();
-        if (set != null)
-            try {
-                while (set.next()) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    for (int i = 1; i <= set.getMetaData().getColumnCount(); i++) row.put(set.getMetaData().getColumnName(i), set.getObject(i));
-                    result.add(row);
-                }
-                set.getStatement().close();
-            } catch (SQLException e) {
-                if (doLog) log.log(Level.FINER, "Error iterating through results from table '" + table + "'.", e);
-            }
-        return new SelectResults(this, table, columns, condition, order, result);
+        return SelectResults.parse(this, table, selectRaw(table, columns, condition, order), condition, order);
     }
 
     /**
@@ -258,10 +365,10 @@ public class Database {
      * @param value The value to insert.
      * @param duplicateValue The value to insert when the column already has this value.
      * @return The amount of rows affected.
-     * @see #insertUpdate(String, String[], Object[], Map)
+     * @see #insertUpdate(String, String[], Object[], Map, String)
      */
     public int insertUpdate(String table, String column, String value, Object duplicateValue) {
-        return insertUpdate(table, new String[] {column}, new String[] {value}, ImmutableMap.<String, Object>builder().put(column, duplicateValue).build());
+        return insertUpdate(table, new String[] {column}, new String[] {value}, ImmutableMap.<String, Object>builder().put(column, duplicateValue).build(), column);
     }
 
     /**
@@ -271,13 +378,14 @@ public class Database {
      * @param columns The columns to insert values into, one of these should be a {@code PRIMARY KEY} column.
      * @param values The values to insert into the columns.
      * @param duplicateValues The columns to update and the values to update them with when a row with the given key already exists.
+     * @param keyColumn The name of the PRIMARY KEY column. Only has to be set when the type of this Database is {@link RDBMS#SQLite SQLite}, can be {@code null} otherwise.
      * @return The amount of rows affected.
      */
-    public int insertUpdate(String table, String[] columns, Object[] values, Map<String, Object> duplicateValues) {
+    public int insertUpdate(String table, String[] columns, Object[] values, Map<String, Object> duplicateValues, String keyColumn) {
         StringBuilder query = new StringBuilder("INSERT INTO " + table + " (`" + String.join("`, `", columns) + "`) VALUES (");
         for (Object value : values)
             query.append(getAsString(value)).append(", ");
-        query.delete(query.length()-2, query.length()).append(") ON DUPLICATE KEY UPDATE ");
+        query.delete(query.length()-2, query.length()).append(") ON ").append(type == RDBMS.SQLite ? "CONFLICT(`" + keyColumn + "`) DO UPDATE SET " : "DUPLICATE KEY UPDATE ");
         duplicateValues.forEach((key, value) -> query.append('`').append(key).append('`').append('=').append(getAsString(value)).append(", "));
         if (duplicateValues.size() > 0) query.delete(query.length()-2, query.length());
         query.append(";");
@@ -296,7 +404,7 @@ public class Database {
      * @param column The column to insert a value into. This must be a PRIMARY KEY column.
      * @param value The value to insert.
      * @return The amount of rows affected.
-     * @see #insertUpdate(String, String[], Object[], Map)
+     * @see #insertUpdate(String, String[], Object[], Map, String)
      */
     public int insertIgnore(String table, String column, String value) {
         return insertIgnore(table, new String[] {column}, new String[] {value}, column);
@@ -311,7 +419,7 @@ public class Database {
      * @return The amount of rows affected.
      */
     public int insertIgnore(String table, String[] columns, Object[] values, String keyColumn) {
-        return insertUpdate(table, columns, values, ImmutableMap.<String, Object>builder().put(keyColumn, values[Arrays.binarySearch(columns, keyColumn)]).build());
+        return insertUpdate(table, columns, values, ImmutableMap.<String, Object>builder().put(keyColumn, values[Arrays.binarySearch(columns, keyColumn)]).build(), keyColumn);
     }
 
     /**
@@ -353,10 +461,24 @@ public class Database {
         return replace(table, new String[] {column}, new Object[] {value});
     }
 
+    /**
+     * Replaces data in a table when a row with the same value for the primary key column as the value given already exists.
+     * @param table The table to replace rows in.
+     * @param columns The columns to replace.
+     * @param values The values to update.
+     * @return The amount of rows affected.
+     */
     public int replace(String table, String[] columns, Object[] values) {
         return replace(table, columns, Lists.<Object[]>newArrayList(values));
     }
 
+    /**
+     * Replaces data in a table when a row with the same value for the primary key column as the value given already exists.
+     * @param table The table to replace rows in.
+     * @param columns The columns to replace.
+     * @param values The values to update.
+     * @return The amount of rows affected.
+     */
     public int replace(String table, String[] columns, List<Object[]> values) {
         StringBuilder query = new StringBuilder("REPLACE INTO " + table + " (`" + String.join("`, `", columns) + "`) VALUES ");
         for (Object[] valuesArray : values) {
@@ -415,10 +537,11 @@ public class Database {
     public ResultSet executeQuery(String query) {
         try {
             Statement statement = createStatement();
-            statement.executeQuery(query);
+            ResultSet set = statement.executeQuery(query);
             statement.closeOnCompletion();
-            return statement.getResultSet();
+            return set;
         } catch (SQLException e) {
+            e.printStackTrace();
             if (doLog) log.log(Level.FINER, "Error executing query '" + query + "' on database " + getName() + ".", e);
             return null;
         }
@@ -431,8 +554,8 @@ public class Database {
      */
     public void createTable(TablePreset preset) {
         StringBuilder query = new StringBuilder("CREATE TABLE IF NOT EXISTS " + preset.getName() + " (");
-        preset.build().forEach((key, value) -> query.append(key).append(' ').append(value).append(", "));
-        preset.getIndices().forEach(index -> query.append(index).append(", "));
+        preset.build(type).forEach((key, value) -> query.append(key).append(' ').append(value).append(", "));
+        if (type != RDBMS.SQLite) preset.getIndices().forEach(index -> query.append(index).append(", ")); // Indices do not work on SQLite apparently.
         query.delete(query.length() - 2, query.length());
         query.append(");");
         executeUpdate(query.toString());
@@ -445,9 +568,9 @@ public class Database {
      */
     public boolean tableExists(String name) {
         try {
-            ResultSet set = executeQuery("SHOW TABLES LIKE " + enquote(name) + ";");
+            ResultSet set = con.getMetaData().getTables(null, null, name, null);
             boolean b = set.next();
-            set.getStatement().close();
+            set.close();
             return b;
         } catch (SQLException throwables) {
             if (doLog) log.log(Level.FINER, "Error checking if table " + enquote(name) + " exists on database " + getName() + ".", throwables);
@@ -586,6 +709,10 @@ public class Database {
             converted.put(pair.getKey(), pair.getValue());
         });
         return converted;
+    }
+
+    public enum RDBMS {
+        MySQL, SQLite, UNKNOWN
     }
 
 }

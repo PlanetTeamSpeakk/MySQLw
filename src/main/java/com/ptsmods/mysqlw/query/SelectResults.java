@@ -7,7 +7,10 @@ import com.google.common.collect.ImmutableSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
+import java.util.logging.Level;
 
 /**
  * Returned when you use any of the select methods in {@link Database}.
@@ -22,12 +25,34 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
     private final List<String> columns;
     private final List<SelectResultRow> data;
 
-    public SelectResults(Database db, String table, CharSequence[] columns, QueryCondition condition, QueryOrder order, List<Map<String, Object>> data) {
+    public static SelectResults parse(Database db, String table, ResultSet set, QueryCondition condition, QueryOrder order) {
+        List<String> columns = new ArrayList<>();
+        boolean columnsFilled = false;
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (set != null)
+            try {
+                while (set.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= set.getMetaData().getColumnCount(); i++) {
+                        row.put(set.getMetaData().getColumnName(i), set.getObject(i));
+                        if (!columnsFilled) columns.add(set.getMetaData().getColumnName(i));
+                    }
+                    columnsFilled = true;
+                    result.add(row);
+                }
+                set.getStatement().close();
+            } catch (SQLException e) {
+                if (db.doLog()) db.getLog().log(Level.FINER, "Error iterating through results from table '" + table + "'.", e);
+            }
+        return new SelectResults(db, table, columns, condition, order, result);
+    }
+
+    private SelectResults(Database db, String table, List<String> columns, QueryCondition condition, QueryOrder order, List<Map<String, Object>> data) {
         this.db = db;
         this.table = table;
-        this.columns = Database.convertList(ImmutableList.copyOf(columns), String::valueOf);
         this.condition = condition;
         this.order = order;
+        this.columns = ImmutableList.copyOf(columns);
         this.data = ImmutableList.copyOf(Database.convertList(data, SelectResultRow::new));
     }
 

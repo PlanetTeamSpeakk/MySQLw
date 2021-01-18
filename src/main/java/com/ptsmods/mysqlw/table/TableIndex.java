@@ -5,26 +5,43 @@ package com.ptsmods.mysqlw.table;
  */
 public class TableIndex {
 
-    public static TableIndex index(String column, TableIndexType type) {
-        return new TableIndex(column, type);
+    public static TableIndex index(String name, String column, TableIndexType type) {
+        return new TableIndex(name, column, type);
     }
 
-    private final String column;
+    public static TableIndex index(String column, TableIndexType type) {
+        return new TableIndex(null, column, type);
+    }
+
+    private final String name, column;
     private final TableIndexType type;
 
-    private TableIndex(String column, TableIndexType type) {
+    private TableIndex(String name, String column, TableIndexType type) {
+        this.name = name;
         this.column = column;
         this.type = type;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public String getColumn() {
+        return column;
+    }
+
+    public TableIndexType getType() {
+        return type;
+    }
+
     @Override
     public TableIndex clone() {
-        return new TableIndex(column, type);
+        return new TableIndex(name, column, type);
     }
 
     @Override
     public String toString() {
-        return type.toString(column);
+        return type.toString(name, column);
     }
 
     public enum TableIndexType {
@@ -46,8 +63,8 @@ public class TableIndex {
          */
         SPATIAL;
 
-        public String toString(String column) {
-            return (this == INDEX ? "" : name() + " ") + "INDEX (`" + column + "`)";
+        public String toString(String name, String column) {
+            return (this == INDEX ? "" : name() + " ") + "INDEX " + (name == null ? "" : "`" + name + "` ") + "(`" + column + "`)";
         }
     }
 }

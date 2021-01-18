@@ -24,6 +24,7 @@ public class ColumnStructure<S> {
     private boolean autoIncrement = false;
     private String comment = null;
     private String extra = null;
+    private boolean readOnly = false;
 
     ColumnStructure(ColumnType<S> type) {
         this.type = type;
@@ -35,12 +36,25 @@ public class ColumnStructure<S> {
     }
 
     /**
+     * Basically what satiating the supplier does, except you put in raw data.<br>
+     * Don't forget to include the type in here too.<br>
+     * Example: VARCHAR(255)
+     * @param typeString The new typeString.
+     * @return This structure
+     */
+    public ColumnStructure<S> setTypeString(String typeString) {
+        this.typeString = typeString;
+        return this;
+    }
+
+    /**
      * Run and return the value of the supplier of the selected {@link ColumnType}.
      * <p style="font-weight: bold; color: red; font-size: 25px;">THIS MUST BE RAN UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
      * @param run The function that gets the supplier and returns its value.
      * @return This structure
      */
     public ColumnStructure<S> satiateSupplier(Function<S, String> run) {
+        checkRO();
         typeString = run.apply(getSupplier());
         return this;
     }
@@ -58,6 +72,7 @@ public class ColumnStructure<S> {
      * @return This structure
      */
     public ColumnStructure<S> setUnique(boolean unique) {
+        checkRO();
         this.unique = unique;
         return this;
     }
@@ -67,6 +82,7 @@ public class ColumnStructure<S> {
      * @return This structure
      */
     public ColumnStructure<S> setPrimary(boolean primary) {
+        checkRO();
         this.primary = primary;
         return this;
     }
@@ -76,6 +92,7 @@ public class ColumnStructure<S> {
      * @return This structure
      */
     public ColumnStructure<S> setDefault(@Nullable ColumnDefault defValue) {
+        checkRO();
         this.defValue = defValue;
         return this;
     }
@@ -85,6 +102,7 @@ public class ColumnStructure<S> {
      * @return This structure
      */
     public ColumnStructure<S> setAttributes(@Nullable ColumnAttributes attributes) {
+        checkRO();
         this.attributes = attributes;
         return this;
     }
@@ -94,6 +112,7 @@ public class ColumnStructure<S> {
      * @return This structure
      */
     public ColumnStructure<S> setNullAllowed(boolean nullAllowed) {
+        checkRO();
         this.nullAllowed = nullAllowed;
         return this;
     }
@@ -103,6 +122,7 @@ public class ColumnStructure<S> {
      * @return This structure.
      */
     public ColumnStructure<S> setAutoIncrement(boolean autoIncrement) {
+        checkRO();
         this.autoIncrement = autoIncrement;
         return this;
     }
@@ -112,6 +132,7 @@ public class ColumnStructure<S> {
      * @return This structure
      */
     public ColumnStructure<S> setComment(@Nullable String comment) {
+        checkRO();
         this.comment = comment;
         return this;
     }
@@ -121,8 +142,23 @@ public class ColumnStructure<S> {
      * @return This structure
      */
     public ColumnStructure<S> setExtra(@Nullable String extra) {
+        checkRO();
         this.extra = extra;
         return this;
+    }
+
+    /**
+     * Makes this ColumnStructure immutable so it cannot be edited.<br>
+     * Used when describing a table.
+     * @return This ColumnStructure
+     */
+    public ColumnStructure<S> readOnly() {
+        readOnly = true;
+        return this;
+    }
+
+    private void checkRO() {
+        if (readOnly) throw new IllegalArgumentException("This ColumnStructure is immutable and can thus not be edited anymore");
     }
 
     /**
@@ -145,14 +181,18 @@ public class ColumnStructure<S> {
 
     @Override
     public String toString() {
+        return toString(Database.RDBMS.UNKNOWN);
+    }
+
+    public String toString(Database.RDBMS type) {
         if (typeString == null) throw new IllegalArgumentException("Supplier has not yet been satiated.");
         StringBuilder builder = new StringBuilder(typeString);
         if (attributes != null) builder.append(' ').append(attributes.toString());
-        if (unique) builder.append(" UNIQUE");
         if (primary) builder.append(" PRIMARY KEY");
+        if (autoIncrement) builder.append(type == Database.RDBMS.SQLite ? " AUTOINCREMENT" : " AUTO_INCREMENT");
+        if (unique) builder.append(" UNIQUE");
         if (defValue != null) builder.append(" DEFAULT ").append(defValue.name());
         builder.append(nullAllowed || defValue == ColumnDefault.NULL ? " NULL" : " NOT NULL");
-        if (autoIncrement) builder.append(" AUTO_INCREMENT");
         if (comment != null) builder.append(" COMMENT ").append(Database.enquote(comment));
         if (extra != null) builder.append(" ").append(extra);
         return builder.toString();

@@ -13,17 +13,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 import java.awt.*;
+import java.io.File;
 import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestMethodOrder(MethodOrderer.Alphanumeric.class)
-class DatabaseTest {
+class MySQLTest {
 
     private static Database db = null;
 
     Database getDb() throws SQLException {
         return db == null ? (db = Database.connect("localhost", 3306, "test", "root", null)) : db;
+    }
+
+    @Test
+    void _loadConnector() {
+        assertDoesNotThrow(() -> Database.loadConnector(Database.RDBMS.MySQL, new File("mysql-connector.jar"), true));
     }
 
     @Test
@@ -111,9 +117,9 @@ class DatabaseTest {
     @Test
     void insertDuplicate() throws SQLException {
         assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
-        assertEquals(2, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val6").build()));
+        assertEquals(2, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val6").build(), "keyword"));
         assertEquals("val6", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
-        assertEquals(2, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val2").build()));
+        assertEquals(2, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val2").build(), "keyword"));
     }
 
     @Test

@@ -1,7 +1,13 @@
 package com.ptsmods.mysqlw.table;
 
+import com.google.common.collect.ImmutableMap;
 import com.ptsmods.mysqlw.Database;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -238,12 +244,26 @@ public class ColumnType<S> {
      */
     public static final ColumnType<Supplier<String>> GEOMETRYCOLLECTION = new ColumnType<>(() -> "GEOMETRYCOLLECTION");
 
+
     // JSON
     /**
      * JSON type<br>
      * Just a string, but it's supposed to resemble JSON data and you can do cool tricks when selecting using JSON_CONTAINS.
      */
     public static final ColumnType<Supplier<String>> JSON = new ColumnType<>(() -> "JSON");
+
+    public static final Map<String, ColumnType<?>> types;
+
+    static {
+        Map<String, ColumnType<?>> types0 = new HashMap<>();
+        for (Field f : ColumnType.class.getFields())
+            if (Modifier.isPublic(f.getModifiers()) && f.getType() == ColumnType.class) {
+                try {
+                    types0.put(f.getName().toUpperCase(Locale.ROOT), (ColumnType<?>) f.get(null));
+                } catch (IllegalAccessException ignored) {}
+            }
+        types = ImmutableMap.copyOf(types0);
+    }
 
     private final S supplier;
 

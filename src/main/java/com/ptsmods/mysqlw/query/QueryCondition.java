@@ -43,6 +43,15 @@ public abstract class QueryCondition {
         };
     }
 
+    public static QueryCondition greaterEqual(String key, Object value) {
+        return new QueryCondition() {
+            @Override
+            public String toString() {
+                return "`" + key + "` >= " + Database.getAsString(value);
+            }
+        };
+    }
+
     public static QueryCondition less(String key, Object value) {
         return new QueryCondition() {
             @Override
@@ -52,11 +61,29 @@ public abstract class QueryCondition {
         };
     }
 
+    public static QueryCondition lessEqual(String key, Object value) {
+        return new QueryCondition() {
+            @Override
+            public String toString() {
+                return "`" + key + "` <= " + Database.getAsString(value);
+            }
+        };
+    }
+
     public static QueryCondition like(String key, String value) {
         return new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` LIKE " + Database.enquote(value);
+            }
+        };
+    }
+
+    public static QueryCondition match(String key, String value) {
+        return new QueryCondition() {
+            @Override
+            public String toString() {
+                return "`" + key + "` MATCH " + Database.enquote(value);
             }
         };
     }
