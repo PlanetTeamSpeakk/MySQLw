@@ -2,11 +2,11 @@
 
 [![Latest release](https://img.shields.io/github/release/PlanetTeamSpeakk/MySQLw.svg)](https://github.com/PlanetTeamSpeakk/MySQLw/releases/latest)
 [![Build Status](https://api.travis-ci.org/PlanetTeamSpeakk/MySQLw.svg)](https://travis-ci.org/PlanetTeamSpeakk/MySQLw)
-![Lines of code](https://img.shields.io/tokei/lines/github/PlanetTeamSpeakk/MySQLw?color=%23fe7d37)
+[![Lines of code](https://img.shields.io/tokei/lines/github/PlanetTeamSpeakk/MySQLw?color=%23fe7d37)](/)
 ### Link to [Javadoc](https://mysqlw.ptsmods.com)
 
-A wrapper for MySQL connections for Java to make your life a lot easier and a lot saner when working with queries.  
-This library is merely a wrapper for the default Java SQL library intended to be used with MySQL (or MariaDB for that matter), this means that you also need the MySQL Java connector to actually connect to your database.
+A wrapper for MySQL and SQLite (beta) connections for Java to make your life a lot easier and a lot saner when working with queries.  
+This library is merely a wrapper for the default Java SQL library intended to be used with MySQL (or MariaDB for that matter) or SQLite, this means that you also need the MySQL Java connector or the SQLite Java connector to actually connect to your database, but the `Database#loadConnector(RDBMS, File, boolean)` method allows you to do so at runtime.
 
 * [Adding MySQLw to your project](#adding-mysqlw-to-your-project)
   + [Gradle](#gradle)
@@ -26,7 +26,7 @@ This library is merely a wrapper for the default Java SQL library intended to be
 ### Gradle
 To add MySQLw to your Gradle project, add the following line to your dependencies:
 ```gradle
-compile 'com.ptsmods:MySQLw:1.1'
+compile 'com.ptsmods:MySQLw:1.2'
 ```
 
 ### Maven
@@ -35,12 +35,13 @@ To add MySQLw to your Maven project, add the following code segment to your pom.
 <dependency>
   <groupId>com.ptsmods</groupId>
   <artifactId>MySQLw</artifactId>
-  <version>1.1</version>
+  <version>1.2</version>
 </dependency>
 ```
 
 ## Usage
 ### Connecting
+#### MySQL
 To start off, you should connect to your database. Assuming the MySQL Java connector is on your classpath too, you can do so with the following code:
 ```java
 String host = "localhost";
@@ -50,6 +51,23 @@ String username = "root";
 String password = null;
 Database db = Database.connect(host, port, name, username, password);
 ```
+
+#### SQLite
+To connect to an SQLite database, all you have to do is supply the location of the database file.  
+You can do so like so:
+```java
+Database db = Database.connect(new File("sqlite.db"));
+```
+
+### Loading the proper connector
+Instead of shadowing the connector library for the Relation Database Management System (RDBMS), you can download and load it with `Database#loadConnector(RDBMS, File, boolean)`.  
+For instance, if you wish to download the MySQL connector and add it to the classpath, you can use
+```java
+Database.loadConnector(Database.RDBMS.MySQL, new File("mysql-connector.jar"), true);
+```
+This will download the MySQL connector to `mysql-connector.jar` if it has not yet been downloaded to that location (if it has, it will ignore the downloading step as stated by the last parameter, the `useCache` boolean) and then add it to the classpath and verify that it worked.  
+If you use this method and it did not successfully manage to load the connector, it will likely throw an `IOException`.  
+It is not guaranteed that it will throw an exception on failure as an exception is only thrown while downloading, although without the connector, you'll get all kinds of other problems thrown anyway, so you'll find out nonetheless.
 
 ### Selecting
 Selecting data is done easily. All data is parsed into a `SelectResults` object which is a list of `SelectResultsRow` which is a map of String keys and Object values.  
