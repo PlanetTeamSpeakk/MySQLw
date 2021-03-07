@@ -31,7 +31,7 @@ class SQLiteTest {
 
     @Test
     void _loadConnector() {
-        assertDoesNotThrow(() -> Database.loadConnector(Database.RDBMS.SQLite, new File("sqlite-connector.jar"), true));
+        assertDoesNotThrow(() -> Database.loadConnector(Database.RDBMS.SQLite, null, new File("sqlite-connector.jar"), true));
     }
 
     @Test

@@ -29,7 +29,7 @@ class MySQLTest {
 
     @Test
     void _loadConnector() {
-        assertDoesNotThrow(() -> Database.loadConnector(Database.RDBMS.MySQL, new File("mysql-connector.jar"), true));
+        assertDoesNotThrow(() -> Database.loadConnector(Database.RDBMS.MySQL, "8.0.23", new File("mysql-connector.jar"), true));
     }
 
     @Test

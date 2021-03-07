@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'com.ptsmods'
-version '1.2'
+version '1.2.1'
 
 repositories {
     mavenLocal()
@@ -18,11 +18,15 @@ dependencies {
     compile group: 'commons-codec', name: 'commons-codec', version: '1.15'
     compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.22', optional
     compile group: 'org.xerial', name: 'sqlite-jdbc', version: '3.34.0', optional
-    testCompile group: 'mysql', name: 'mysql-connector-java', version: '8.0.22', optional
-    testCompile group: 'org.xerial', name: 'sqlite-jdbc', version: '3.34.0', optional
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
 }
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 
 task sourceJar(type: Jar) {
     classifier "sources"
@@ -38,4 +42,57 @@ artifacts {
     archives jar
     archives sourceJar
     archives javadocJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+test {
+    useJUnitPlatform()
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom.project {
+                name 'MySQLw'
+                packaging 'jar'
+                artifactId 'MySQLw'
+                description 'A wrapper for MySQL connections'
+                url 'https://github.com/PlanetTeamSpeakk/MySQLw'
+
+                scm {
+                    connection 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    developerConnection 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    url 'https://github.com/PlanetTeamSpeakk/MySQLw'
+                }
+
+                licenses {
+                    license {
+                        name 'MIT License'
+                        url 'https://raw.githubusercontent.com/PlanetTeamSpeakk/MySQLw/main/LICENSE'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'PlanetTeamSpeak'
+                        name 'PlanetTeamSpeak'
+                        email 'PlanetTeamSpeakk@users.noreply.github.com'
+                    }
+                }
+            }
+        }
+    }
 }

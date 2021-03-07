@@ -1,7 +1,7 @@
 package com.ptsmods.mysqlw.collection;
 
 import com.ptsmods.mysqlw.Database;
-import javafx.util.Pair;
+import com.ptsmods.mysqlw.Pair;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -168,7 +168,7 @@ public class DbCF {
      * @see #registerConverters(Class, BiFunction, BiFunction)
      */
     public static <T> BiFunction<T, DbCollection, String> getTo(Class<T> type) {
-        return get(type).getKey();
+        return get(type).getLeft();
     }
 
     /**
@@ -179,7 +179,7 @@ public class DbCF {
      * @see #registerConverters(Class, BiFunction, BiFunction)
      */
     public static <T> BiFunction<String, DbCollection, T> getFrom(Class<T> type) {
-        return get(type).getValue();
+        return get(type).getRight();
     }
 
     /**
@@ -193,6 +193,6 @@ public class DbCF {
     public static <T> Pair<BiFunction<T, DbCollection, String>, BiFunction<String, DbCollection, T>> get(Class<T> type) {
         if (!converters.containsKey(type)) return new Pair<>(null, null);
         Pair<BiFunction<?, DbCollection, String>, BiFunction<String, DbCollection, ?>> pair = converters.get(type);
-        return new Pair<>((BiFunction<T, DbCollection, String>) pair.getKey(), (BiFunction<String, DbCollection, T>) pair.getValue());
+        return new Pair<>((BiFunction<T, DbCollection, String>) pair.getRight(), (BiFunction<String, DbCollection, T>) pair.getLeft());
     }
 }

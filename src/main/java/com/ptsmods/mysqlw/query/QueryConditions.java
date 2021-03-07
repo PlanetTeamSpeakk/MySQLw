@@ -1,6 +1,6 @@
 package com.ptsmods.mysqlw.query;
 
-import javafx.util.Pair;
+import com.ptsmods.mysqlw.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,10 +55,10 @@ public class QueryConditions extends QueryCondition {
         StringBuilder builder = new StringBuilder("(");
         boolean first = true;
         for (Pair<ConditionKeyword, QueryCondition> condition : conditions) {
-            builder.append(first ? "" : condition.getKey().toString() + " ").append(condition.getValue()).append(" ");
+            builder.append(first ? "" : condition.getLeft().toString() + " ").append(condition.getRight()).append(" ");
             first = false;
         }
-        return builder.append(')').toString();
+        return builder.toString().trim() + ')';
     }
 
     public enum ConditionKeyword {

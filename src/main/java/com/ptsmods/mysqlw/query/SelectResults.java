@@ -2,15 +2,12 @@ package com.ptsmods.mysqlw.query;
 
 import com.ptsmods.mysqlw.Database;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.logging.Level;
 
 /**
  * Returned when you use any of the select methods in {@link Database}.
@@ -42,7 +39,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
                 }
                 set.getStatement().close();
             } catch (SQLException e) {
-                if (db.doLog()) db.getLog().log(Level.FINER, "Error iterating through results from table '" + table + "'.", e);
+                db.logOrThrow("Error iterating through results from table '" + table + "'.", e);
             }
         return new SelectResults(db, table, columns, condition, order, result);
     }
@@ -53,7 +50,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         this.condition = condition;
         this.order = order;
         this.columns = ImmutableList.copyOf(columns);
-        this.data = ImmutableList.copyOf(Database.convertList(data, SelectResultRow::new));
+        this.data = Collections.unmodifiableList(Database.convertList(data, SelectResultRow::new));
     }
 
     /**
@@ -96,7 +93,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
      * @see #get(int)
      */
     public List<SelectResultRow> getRows() {
-        return ImmutableList.copyOf(data);
+        return data;
     }
 
     @Override
@@ -166,7 +163,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
     @Nonnull
     @Override
     public ListIterator<SelectResultRow> listIterator() {
-        return data.listIterator(); // Data is an ImmutableList, so it cannot be edited via this iterator either.
+        return data.listIterator();
     }
 
     @Nonnull
@@ -265,7 +262,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         private final Map<String, Object> data;
 
         private SelectResultRow(Map<String, Object> data) {
-            this.data = ImmutableMap.copyOf(data);
+            this.data = Collections.unmodifiableMap(data);
         }
 
         /**
@@ -305,7 +302,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         @Override
         public Object get(Object column) {
             if (!(column instanceof String) || !getColumns().contains(column)) throw new IllegalArgumentException("No column by that name exists.");
-            else return data.getOrDefault(column, null);
+            else return data.get(column);
         }
 
         private void throwException() {
@@ -315,6 +312,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         @Nullable
         @Override
         public Object put(String key, Object value) {
+
             throwException();
             return null;
         }
@@ -338,7 +336,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         @Nonnull
         @Override
         public Set<String> keySet() {
-            return ImmutableSet.copyOf(columns);
+            return Collections.unmodifiableSet(new LinkedHashSet<>(columns));
         }
 
         @Nonnull
