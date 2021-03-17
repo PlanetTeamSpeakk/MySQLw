@@ -26,7 +26,7 @@ This library is merely a wrapper for the default Java SQL library intended to be
 ### Gradle
 To add MySQLw to your Gradle project, add the following line to your dependencies:
 ```gradle
-compile 'com.ptsmods:MySQLw:1.2'
+compile 'com.ptsmods:MySQLw:1.3.1'
 ```
 
 ### Maven
@@ -35,7 +35,7 @@ To add MySQLw to your Maven project, add the following code segment to your pom.
 <dependency>
   <groupId>com.ptsmods</groupId>
   <artifactId>MySQLw</artifactId>
-  <version>1.2</version>
+  <version>1.3.1</version>
 </dependency>
 ```
 
@@ -85,22 +85,26 @@ Say you have the following table named people (credits to [TutorialRepublic](htt
 ```
 If you wish to select the `last_name` column only you can do so with the following code segment:
 ```java
-SelectResults results = db.select("people", "last_name", null, null);
+SelectResults results = db.select("people", "last_name");
 ```
 Now if you wish to do the same, but only if the id is greater than 3, you could use
 ```java
-SelectResults results = db.select("people", "last_name", QueryCondition.greater("id", 3), null);
+SelectResults results = db.select("people", "last_name", QueryCondition.greater("id", 3));
 ```
-Now if you wish to only return results whose email address starts with 'john' and order by first_name and you also want the first_name column returned, you can do so with
+Now if you wish to only return results whose email address starts with 'john' and order by first_name and you also want the first_name column returned and only want at most two elements, you can do so with
 ```java
-SelectResults results = db.select("people", new String[] {"first_name", "last_name"}, QueryConditions.create(QueryCondition.greater("id", 3)).and(QueryCondition.like("email", "john%")), QueryOrder.by("first_name"));
+SelectResults results = db.select("people", new String[] {"first_name", "last_name"}, QueryConditions.create(QueryCondition.greater("id", 3)).and(QueryCondition.like("email", "john%")), QueryOrder.by("first_name"), QueryLimit.limit(2));
 ```
 Besides just passing a String as the column, you can pass any CharSequence, more specifically the QueryFunction.
 
-In conclusion, the select method is either one of the following:
+In conclusion, the select method is any of the following:
 ```java
-Database.select(String table, CharSequence column, QueryCondition condition, QueryOrder order);
-Database.select(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order);
+Database.select(String table, CharSequence column);
+Database.select(String table, CharSequence column, QueryCondition condition);
+Database.select(String table, CharSequence column, QueryCondition condition, QueryOrder order, QueryLimit limit);
+Database.select(String table, CharSequence[] columns);
+Database.select(String table, CharSequence[] columns, QueryCondition condition);
+Database.select(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order, QueryLimit limit);
 ```
 
 ### Inserting
