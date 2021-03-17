@@ -5,9 +5,10 @@ import com.google.common.collect.ImmutableList;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.sql.Date;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * Returned when you use any of the select methods in {@link Database}.
@@ -19,10 +20,15 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
     private final String table;
     private final QueryCondition condition;
     private final QueryOrder order;
+    private final QueryLimit limit;
     private final List<String> columns;
     private final List<SelectResultRow> data;
 
-    public static SelectResults parse(Database db, String table, ResultSet set, QueryCondition condition, QueryOrder order) {
+    public static SelectResults parse(ResultSet set) {
+        return parse(null, null, set, null, null, null);
+    }
+
+    public static SelectResults parse(Database db, String table, ResultSet set, QueryCondition condition, QueryOrder order, QueryLimit limit) {
         List<String> columns = new ArrayList<>();
         boolean columnsFilled = false;
         List<Map<String, Object>> result = new ArrayList<>();
@@ -41,16 +47,17 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
             } catch (SQLException e) {
                 db.logOrThrow("Error iterating through results from table '" + table + "'.", e);
             }
-        return new SelectResults(db, table, columns, condition, order, result);
+        return new SelectResults(db, table, columns, condition, order, limit, result);
     }
 
-    private SelectResults(Database db, String table, List<String> columns, QueryCondition condition, QueryOrder order, List<Map<String, Object>> data) {
+    private SelectResults(Database db, String table, List<String> columns, QueryCondition condition, QueryOrder order, QueryLimit limit, List<Map<String, Object>> data) {
         this.db = db;
         this.table = table;
         this.condition = condition;
         this.order = order;
+        this.limit = limit;
         this.columns = ImmutableList.copyOf(columns);
-        this.data = Collections.unmodifiableList(Database.convertList(data, SelectResultRow::new));
+        this.data = data.stream().map(SelectResultRow::new).collect(ImmutableList.toImmutableList());
     }
 
     /**
@@ -86,6 +93,13 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
      */
     public QueryOrder getOrder() {
         return order;
+    }
+
+    /**
+     * @return The limit of rows returned, including the offset at which these rows are selected from the entire result.
+     */
+    public QueryLimit getLimit() {
+        return limit;
     }
 
     /**
@@ -305,6 +319,74 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
             else return data.get(column);
         }
 
+        public String getString(String column) {
+            return (String) get(column);
+        }
+
+        public Number getNumber(String column) {
+            return (Number) get(column);
+        }
+
+        public byte getByte(String column) {
+            return getNumber(column).byteValue();
+        }
+
+        public short getShort(String column) {
+            return getNumber(column).shortValue();
+        }
+
+        public int getInt(String column) {
+            return getNumber(column).intValue();
+        }
+
+        public long getLong(String column) {
+            return getNumber(column).longValue();
+        }
+
+        public float getFloat(String column) {
+            return getNumber(column).floatValue();
+        }
+
+        public double getDouble(String column) {
+            return getNumber(column).doubleValue();
+        }
+
+        public Timestamp getTimestamp(String column) {
+            // If it's not a Timestamp or String, you're probably doing something wrong.
+            // (SQLite likes to send these as a String instead and I'm assuming that goes for the following types too)
+            return get(column) instanceof Timestamp || get(column) == null ? (Timestamp) get(column) : Timestamp.valueOf(getString(column));
+        }
+
+        public Date getDate(String column) {
+            return get(column) instanceof Date || get(column) == null ? (Date) get(column) : Date.valueOf(getString(column));
+        }
+
+        public Time getTime(String column) {
+            return get(column) instanceof Time || get(column) == null ? (Time) get(column) : Time.valueOf(getString(column));
+        }
+
+        public byte[] getByteArray(String column) {
+            // I believe BLOB type columns are returned this way.
+            // And I know geometry types are.
+            return (byte[]) get(column);
+        }
+
+        public Blob getBlob(String column) {
+            // Don't actually know if MySQL or SQLite uses this, but in case they do, here you go.
+            return (Blob) get(column);
+        }
+
+        /**
+         * Returns a type registered using {@link Database#registerTypeConverter(Class, Function, Function)}.
+         * @param column The column to get the object from.
+         * @param type The class of the object.
+         * @param <T> The generic type of the object.
+         * @return The object in this column.
+         */
+        public <T> T get(String column, Class<T> type) {
+            return Database.getFromString(getString(column), type);
+        }
+
         private void throwException() {
             throw new UnsupportedOperationException("SelectResult cannot be altered.");
         }
@@ -312,7 +394,6 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         @Nullable
         @Override
         public Object put(String key, Object value) {
-
             throwException();
             return null;
         }

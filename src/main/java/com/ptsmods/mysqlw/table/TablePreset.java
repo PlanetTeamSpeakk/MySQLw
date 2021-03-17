@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.ptsmods.mysqlw.Pair;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class TablePreset {
 
@@ -99,7 +100,7 @@ public class TablePreset {
     }
 
     public Map<String, String> build(Database.RDBMS type) {
-        return ImmutableMap.copyOf(Database.convertMap(columns, entry -> new Pair<>(entry.getKey(), entry.getValue().toString(type))));
+        return columns.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().toString(type)));
     }
 
     public String buildQuery(Database.RDBMS type) {
@@ -126,8 +127,8 @@ public class TablePreset {
 
     public TablePreset clone() {
         TablePreset clone = new TablePreset(name);
-        clone.putAll(Database.convertMap(columns, entry -> new Pair<>(entry.getKey(), entry.getValue().clone())));
-        clone.indices.putAll(Database.convertMap(indices, entry -> new Pair<>(entry.getKey(), entry.getValue().clone())));
+        clone.putAll(columns.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().clone())));
+        clone.indices.putAll(indices.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().clone())));
         return clone;
     }
 

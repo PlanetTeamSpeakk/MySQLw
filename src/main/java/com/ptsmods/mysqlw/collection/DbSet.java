@@ -81,7 +81,7 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
 
     @Override
     public int size() {
-        return db.select(table, "value", null, null).size();
+        return db.select(table, "value", null, null, null).size();
     }
 
     @Override
@@ -91,7 +91,7 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
 
     @Override
     public boolean contains(Object o) {
-        return db.select(table, "value", QueryCondition.equals("value", elementToString.apply((E) o, this)), null).size() > 0;
+        return db.select(table, "value", QueryCondition.equals("value", elementToString.apply((E) o, this)), null, null).size() > 0;
     }
 
     @Nonnull
@@ -127,7 +127,7 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         QueryConditions condition = QueryConditions.create();
         for (Object element : c)
             condition.or(QueryCondition.equals("value", elementToString.apply((E) element, this)));
-        return db.select(table, new String[] {"value"}, condition, null).size() == c.size();
+        return db.select(table, new String[] {"value"}, condition, null, null).size() == c.size();
     }
 
     @Override
@@ -178,7 +178,7 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
 
     public Set<E> toHashSet() {
         Set<E> set = new HashSet<>();
-        db.select(table, "value", null, null).forEach(row -> set.add(elementFromString.apply(row.get("value").toString(), this)));
+        db.select(table, "value", null, null, null).forEach(row -> set.add(elementFromString.apply(row.get("value").toString(), this)));
         return set;
     }
 }

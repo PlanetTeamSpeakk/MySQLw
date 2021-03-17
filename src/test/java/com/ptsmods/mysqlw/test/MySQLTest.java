@@ -15,6 +15,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import java.awt.*;
 import java.io.File;
 import java.sql.SQLException;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,7 +25,9 @@ class MySQLTest {
     private static Database db = null;
 
     Database getDb() throws SQLException {
-        return db == null ? (db = Database.connect("localhost", 3306, "test", "root", null)) : db;
+        db = db == null ? (db = Database.connect("localhost", 3306, "test", "root", null)) : db;
+        db.setLogging(false);
+        return db;
     }
 
     @Test
@@ -98,43 +101,43 @@ class MySQLTest {
 
     @Test
     void select() throws SQLException {
-        assertEquals(2, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key2")).or(QueryCondition.equals("value", "val1")), null).size());
-        assertEquals(1, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key2"), null).size());
+        assertEquals(2, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key2")).or(QueryCondition.equals("value", "val1")), null, null).size());
+        assertEquals(1, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key2"), null, null).size());
     }
 
     @Test
     void insert() throws SQLException {
-        assertEquals(0, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key3"), null).size());
+        assertEquals(0, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key3"), null, null).size());
         getDb().insert("testtable", new String[] {"keyword", "value"}, new Object[] {"key3", "val3"});
-        assertEquals(1, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key3"), null).size());
-        assertEquals(0, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5")), null).size());
+        assertEquals(1, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key3"), null, null).size());
+        assertEquals(0, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5")), null, null).size());
         getDb().insert("testtable", new String[] {"keyword", "value"}, Lists.newArrayList(new Object[] {"key4", "val4"}, new Object[] {"key5", "val5"}));
-        assertEquals(2, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5")), null).size());
+        assertEquals(2, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5")), null, null).size());
         QueryCondition condition = QueryConditions.create(QueryCondition.equals("keyword", "key3")).or(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5"));
         getDb().delete("testtable", condition);
     }
 
     @Test
     void insertDuplicate() throws SQLException {
-        assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
+        assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
         assertEquals(2, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val6").build(), "keyword"));
-        assertEquals("val6", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
+        assertEquals("val6", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
         assertEquals(2, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val2").build(), "keyword"));
     }
 
     @Test
     void update() throws SQLException {
-        assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
+        assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
         getDb().update("testtable", "value", "val8", QueryCondition.equals("keyword", "key2"));
-        assertEquals("val8", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
+        assertEquals("val8", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
         getDb().update("testtable", "value", "val2", QueryCondition.equals("keyword", "key2"));
     }
 
     @Test
     void replace() throws SQLException {
-        assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
+        assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
         getDb().replace("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val10"});
-        assertEquals("val10", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null).get(0).get("value"));
+        assertEquals("val10", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
         getDb().replace("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"});
     }
 
@@ -154,13 +157,17 @@ class MySQLTest {
     }
 
     @Test
-    void registerTypeConverter() {
-        Database.registerTypeConverter(Point.class, point -> "Point[x=" + point.x + ",y=" + point.y + "]");
-        assertEquals("Point[x=6,y=5]", Database.getAsString(new Point(6, 5)));
+    void readQuotedString() {
+        assertEquals("This is a name", Database.readQuotedString("'This is a name',values={}]"));
     }
 
     @Test
-    void readQuotedString() {
-        assertEquals("This is a name", Database.readQuotedString("'This is a name',values={}]"));
+    void typeConverter() throws SQLException {
+        Database.registerTypeConverter(UUID.class, id -> id == null ? null : Database.enquote(id.toString()), UUID::fromString);
+        TablePreset.create("typetest").putColumn("id", ColumnType.CHAR.createStructure().satiateSupplier(sup -> sup.apply(36))).create(getDb());
+        getDb().truncate("typetest");
+        UUID id = UUID.randomUUID();
+        assertEquals(1, getDb().insert("typetest", "id", id));
+        assertEquals(id, getDb().select("typetest", "id").get(0).get("id", UUID.class));
     }
 }

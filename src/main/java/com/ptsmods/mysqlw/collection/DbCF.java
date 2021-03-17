@@ -193,6 +193,6 @@ public class DbCF {
     public static <T> Pair<BiFunction<T, DbCollection, String>, BiFunction<String, DbCollection, T>> get(Class<T> type) {
         if (!converters.containsKey(type)) return new Pair<>(null, null);
         Pair<BiFunction<?, DbCollection, String>, BiFunction<String, DbCollection, ?>> pair = converters.get(type);
-        return new Pair<>((BiFunction<T, DbCollection, String>) pair.getRight(), (BiFunction<String, DbCollection, T>) pair.getLeft());
+        return new Pair<>((BiFunction<T, DbCollection, String>) pair.getLeft(), (BiFunction<String, DbCollection, T>) pair.getRight());
     }
 }

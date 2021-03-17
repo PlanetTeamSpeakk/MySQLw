@@ -51,13 +51,13 @@ public class ColumnType<S> {
      * Accurate up to around 7 decimal places.<br>
      * Allowed values: -3.402823466E+38 to -1.175494351E-38, 0, and 1.175494351E-38 to 3.402823466E+38
      */
-    public static final ColumnType<BiFunction<Integer, Integer, String>> FLOAT = new ColumnType<>((length, precision) -> parseDecimal("DOUBLE", length, precision));
+    public static final ColumnType<BiFunction<Integer, Integer, String>> FLOAT = new ColumnType<>((length, precision) -> parseDecimal("FLOAT", length, precision));
     /**
      * Regular decimal type (double)<br>
      * Accurate up to around 16 decimal places.<br>
      * Allowed values: -3.402823466E+38 to -1.175494351E-38, 0, and 1.175494351E-38 to 3.402823466E+38
      */
-    public static final ColumnType<BiFunction<Integer, Integer, String>> DOUBLE = new ColumnType<>((length, precision) -> parseDecimal("FLOAT", length, precision));
+    public static final ColumnType<BiFunction<Integer, Integer, String>> DOUBLE = new ColumnType<>((length, precision) -> parseDecimal("DOUBLE", length, precision));
     /**
      * Big decimal type (BigDecimal)<br>
      * <b>Fixed point</b><br>

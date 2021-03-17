@@ -1,14 +1,9 @@
 package com.ptsmods.mysqlw;
 
-import com.ptsmods.mysqlw.query.QueryCondition;
-import com.ptsmods.mysqlw.query.QueryFunction;
-import com.ptsmods.mysqlw.query.QueryOrder;
-import com.ptsmods.mysqlw.query.SelectResults;
+import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.table.TablePreset;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.ptsmods.mysqlw.Pair;
-import org.apache.commons.codec.binary.Hex;
 
 import javax.annotation.Nullable;
 import java.io.*;
@@ -29,6 +24,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class Database {
 
     private static final Map<Class<?>, Function<Object, String>> classConverters = new HashMap<>();
+    private static final Map<Class<?>, Function<String, Object>> reverseClassConverters = new HashMap<>();
+    private static final char[] HEX_DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
     /**
      * Downloads the latest version of the connector for the given type and adds it to the classpath.<br>
@@ -50,11 +47,11 @@ public class Database {
                 String versionCheck = null;
                 switch (type) {
                     case MySQL:
-                        if (useCache && checkAndAdd(file, type, "com.mysql.cj.Session")) return;
+                        if (useCache && checkAndAdd(file, type)) return;
                         versionCheck = "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml";
                         break;
                     case SQLite:
-                        if (useCache && checkAndAdd(file, type, "org.sqlite.core.Codes")) return;
+                        if (useCache && checkAndAdd(file, type)) return;
                         versionCheck = "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml";
                         break;
                 }
@@ -69,7 +66,7 @@ public class Database {
                     }
                 reader.close();
             }
-            String downloadUrl = null;
+            String downloadUrl;
             switch (type) {
                 case MySQL:
                     downloadUrl = "https://repo1.maven.org/maven2/mysql/mysql-connector-java/" + version + "/mysql-connector-java-" + version + ".jar";
@@ -77,6 +74,8 @@ public class Database {
                 case SQLite:
                     downloadUrl = "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/" + version + "/sqlite-jdbc-" + version + ".jar";
                     break;
+                default:
+                    downloadUrl = null;
             }
             try (BufferedInputStream in = new BufferedInputStream(new URL(downloadUrl).openStream()); FileOutputStream out = new FileOutputStream(file)) {
                 byte[] buf = new byte[1024];
@@ -84,22 +83,31 @@ public class Database {
                 while ((bytesRead = in.read(buf, 0, 1024)) != -1)
                     out.write(buf, 0, bytesRead);
             }
-            addToClassPath(file);
+            addToClassPath(file, type.getInitialLoadClass());
         }
     }
 
-    private static void addToClassPath(File file) {
-        URLClassLoader classLoader = (URLClassLoader)ClassLoader.getSystemClassLoader();
-        Method method;
-        try {
-            method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-        } catch (NoSuchMethodException ignored) {return;} // Impossible
-        method.setAccessible(true);
-        try {
-            method.invoke(classLoader, file.toURI().toURL());
-        } catch (IllegalAccessException | InvocationTargetException | MalformedURLException e) { // Shouldn't happen, but who knows?
-            e.printStackTrace();
-        }
+    private static void addToClassPath(File file, String initialLoadClass) {
+        if (System.getProperty("java.version").startsWith("1.8")) { // In Java 1.8 the system classloader is a URLClassLoader, starting from Java 9 this is an AppClassLoader.
+            URLClassLoader classLoader = (URLClassLoader) ClassLoader.getSystemClassLoader();
+            Method method;
+            try {
+                method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+            } catch (NoSuchMethodException ignored) {
+                return;
+            } // Impossible
+            method.setAccessible(true);
+            try {
+                method.invoke(classLoader, file.toURI().toURL());
+            } catch (IllegalAccessException | InvocationTargetException | MalformedURLException e) { // Shouldn't happen, but who knows?
+                e.printStackTrace();
+            }
+        } else
+            try {
+                new URLClassLoader(new URL[] {file.toURI().toURL()}, Database.class.getClassLoader()).loadClass(initialLoadClass);
+            } catch (ClassNotFoundException | MalformedURLException e) {
+                e.printStackTrace();
+            }
     }
 
     private static boolean classExists(String name) {
@@ -110,11 +118,11 @@ public class Database {
         return false;
     }
 
-    private static boolean checkAndAdd(File file, RDBMS type, String className) throws IOException {
-        if (classExists(className)) return true;
+    private static boolean checkAndAdd(File file, RDBMS type) throws IOException {
+        if (classExists(type.getInitialLoadClass())) return true;
         else if (file.exists()) {
-            addToClassPath(file);
-            if (!classExists(className)) loadConnector(type, null, file, false);
+            addToClassPath(file, type.getInitialLoadClass());
+            if (!classExists(type.getInitialLoadClass())) loadConnector(type, null, file, false);
             return true;
         }
         return false;
@@ -236,6 +244,20 @@ public class Database {
     }
 
     /**
+     * Prepares a new statement.
+     * @param query The query to use in this statement. Use question marks as argument placeholders.
+     * @return A prepared statement which can be used to easily insert or update data.
+     */
+    public PreparedStatement preparedStatement(String query) {
+        try {
+            return con.prepareStatement(query);
+        } catch (SQLException throwables) {
+            logOrThrow("Could not prepare statement with query '" + query + "'", throwables);
+            return null;
+        }
+    }
+
+    /**
      * Counts columns in a table.
      * @param table The table to count them in.
      * @param what What columns to count.
@@ -281,13 +303,58 @@ public class Database {
      * <b>The statement used for this query is </b><p style="font-size: 20; color: red; font-weight: bold;">not closed</p><b> so make sure to close it with {@code set.getStatement().close()}.</b>
      * @param table The table to select from.
      * @param column The column to select.
+     * @return A raw ResultSet that must be closed after use.
+     */
+    public ResultSet selectRaw(String table, CharSequence column) {
+        return selectRaw(table, column, null, null, null);
+    }
+
+    /**
+     * Runs a select query and returns the raw output.
+     * <b>The statement used for this query is </b><p style="font-size: 20; color: red; font-weight: bold;">not closed</p><b> so make sure to close it with {@code set.getStatement().close()}.</b>
+     * @param table The table to select from.
+     * @param column The column to select.
+     * @return A raw ResultSet that must be closed after use.
+     */
+    public ResultSet selectRaw(String table, CharSequence column, QueryCondition condition) {
+        return selectRaw(table, column, condition, null, null);
+    }
+
+    /**
+     * Runs a select query and returns the raw output.
+     * <b>The statement used for this query is </b><p style="font-size: 20; color: red; font-weight: bold;">not closed</p><b> so make sure to close it with {@code set.getStatement().close()}.</b>
+     * @param table The table to select from.
+     * @param column The column to select.
      * @param condition The condition rows must meet in order to be selected.
      * @param order What column to order by and in what direction.
+     * @param limit The limit of rows returned, including the offset at which these rows are selected from the entire result.
      * @return A raw ResultSet that must be closed after use.
-     * @see #select(String, CharSequence, QueryCondition, QueryOrder)
+     * @see #select(String, CharSequence, QueryCondition, QueryOrder, QueryLimit)
      */
-    public ResultSet selectRaw(String table, CharSequence column, QueryCondition condition, QueryOrder order) {
-        return selectRaw(table, new CharSequence[] {column}, condition, order);
+    public ResultSet selectRaw(String table, CharSequence column, QueryCondition condition, QueryOrder order, QueryLimit limit) {
+        return selectRaw(table, new CharSequence[] {column}, condition, order, limit);
+    }
+
+    /**
+     * Runs a select query and returns the raw output.
+     * <b>The statement used for this query is </b><p style="font-size: 20; color: red; font-weight: bold;">not closed</p><b> so make sure to close it with {@code set.getStatement().close()}.</b>
+     * @param table The table to select from.
+     * @param columns The columns to select.
+     * @return A raw ResultSet that must be closed after use.
+     */
+    public ResultSet selectRaw(String table, CharSequence[] columns) {
+        return selectRaw(table, columns, null, null, null);
+    }
+
+    /**
+     * Runs a select query and returns the raw output.
+     * <b>The statement used for this query is </b><p style="font-size: 20; color: red; font-weight: bold;">not closed</p><b> so make sure to close it with {@code set.getStatement().close()}.</b>
+     * @param table The table to select from.
+     * @param columns The columns to select.
+     * @return A raw ResultSet that must be closed after use.
+     */
+    public ResultSet selectRaw(String table, CharSequence[] columns, QueryCondition condition) {
+        return selectRaw(table, columns, condition, null, null);
     }
 
     /**
@@ -297,15 +364,41 @@ public class Database {
      * @param columns The columns to select.
      * @param condition The condition rows must meet in order to be selected.
      * @param order What column to order by and in what direction.
+     * @param limit The limit of rows returned, including the offset at which these rows are selected from the entire result.
      * @return A raw ResultSet that must be closed after use.
-     * @see #select(String, CharSequence[], QueryCondition, QueryOrder)
+     * @see #select(String, CharSequence[], QueryCondition, QueryOrder, QueryLimit)
      */
-    public ResultSet selectRaw(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order) {
+    public ResultSet selectRaw(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order, QueryLimit limit) {
         StringBuilder query = new StringBuilder("SELECT ");
         for (CharSequence seq : columns)
             query.append(getAsString(seq)).append(", ");
-        query.delete(query.length()-2, query.length()).append(" FROM ").append(engrave(table)).append(condition == null ? "" : " WHERE " + condition).append(order == null ? "" : " ORDER BY " + order);
-        return executeQuery(query.toString());
+        query.delete(query.length()-2, query.length())
+                .append(" FROM ").append(engrave(table))
+                .append(condition == null ? "" : " WHERE " + condition)
+                .append(order == null ? "" : " ORDER BY " + order)
+                .append(limit == null ? "" : limit.toString());
+        return executeQuery(query.toString() + ";");
+    }
+
+    /**
+     * Runs a select query and returns parsed output.
+     * @param table The table to select from.
+     * @param column The column to select.
+     * @return Parsed data in the form of {@link SelectResults}.
+     */
+    public SelectResults select(String table, CharSequence column) {
+        return select(table, new CharSequence[] {column}, null, null, null);
+    }
+
+    /**
+     * Runs a select query and returns parsed output.
+     * @param table The table to select from.
+     * @param column The column to select.
+     * @param condition The condition rows must meet in order to be selected.
+     * @return Parsed data in the form of {@link SelectResults}.
+     */
+    public SelectResults select(String table, CharSequence column, QueryCondition condition) {
+        return select(table, new CharSequence[] {column}, condition);
     }
 
     /**
@@ -314,10 +407,32 @@ public class Database {
      * @param column The column to select.
      * @param condition The condition rows must meet in order to be selected.
      * @param order What column to order by and in what direction.
+     * @param limit The limit of rows returned, including the offset at which these rows are selected from the entire result.
      * @return Parsed data in the form of {@link SelectResults}.
      */
-    public SelectResults select(String table, CharSequence column, QueryCondition condition, QueryOrder order) {
-        return select(table, new CharSequence[] {column}, condition, order);
+    public SelectResults select(String table, CharSequence column, QueryCondition condition, QueryOrder order, QueryLimit limit) {
+        return select(table, new CharSequence[] {column}, condition, order, limit);
+    }
+
+    /**
+     * Runs a select query and returns parsed output.
+     * @param table The table to select from.
+     * @param columns The columns to select.
+     * @return Parsed data in the form of {@link SelectResults}.
+     */
+    public SelectResults select(String table, CharSequence[] columns) {
+        return SelectResults.parse(this, table, selectRaw(table, columns, null, null, null), null, null, null);
+    }
+
+    /**
+     * Runs a select query and returns parsed output.
+     * @param table The table to select from.
+     * @param columns The columns to select.
+     * @param condition The condition rows must meet in order to be selected.
+     * @return Parsed data in the form of {@link SelectResults}.
+     */
+    public SelectResults select(String table, CharSequence[] columns, QueryCondition condition) {
+        return SelectResults.parse(this, table, selectRaw(table, columns, condition, null, null), condition, null, null);
     }
 
     /**
@@ -326,10 +441,11 @@ public class Database {
      * @param columns The columns to select.
      * @param condition The condition rows must meet in order to be selected.
      * @param order What column to order by and in what direction.
+     * @param limit The limit of rows returned, including the offset at which these rows are selected from the entire result.
      * @return Parsed data in the form of {@link SelectResults}.
      */
-    public SelectResults select(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order) {
-        return SelectResults.parse(this, table, selectRaw(table, columns, condition, order), condition, order);
+    public SelectResults select(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order, QueryLimit limit) {
+        return SelectResults.parse(this, table, selectRaw(table, columns, condition, order, limit), condition, order, limit);
     }
 
     /**
@@ -365,6 +481,10 @@ public class Database {
      */
     public int insert(String table, String[] columns, List<Object[]> values) {
         StringBuilder query = new StringBuilder("INSERT INTO " + engrave(table) + " (" + String.join(", ", columns) + ") VALUES ");
+        return doInsert(values, query);
+    }
+
+    private int doInsert(List<Object[]> values, StringBuilder query) {
         for (Object[] valuesArray : values) {
             query.append("(");
             for (Object value : valuesArray)
@@ -498,13 +618,7 @@ public class Database {
      */
     public int replace(String table, String[] columns, List<Object[]> values) {
         StringBuilder query = new StringBuilder("REPLACE INTO " + engrave(table) + " (`" + String.join("`, `", columns) + "`) VALUES ");
-        for (Object[] valuesArray : values) {
-            query.append("(");
-            for (Object o : valuesArray)
-                query.append(getAsString(o)).append(", ");
-            query.delete(query.length()-2, query.length()).append("), ");
-        }
-        return executeUpdate(query.delete(query.length()-2, query.length()).append(';').toString());
+        return doInsert(values, query);
     }
 
     /**
@@ -596,7 +710,7 @@ public class Database {
      */
     public String getCreateQuery(String table) {
         String query = type == RDBMS.SQLite ? "SELECT sql FROM sqlite_master WHERE name=" + enquote(table) + ";" : "SHOW CREATE TABLE " + engrave(table) + ";";
-        SelectResults results = SelectResults.parse(this, table, executeQuery(query), type == RDBMS.SQLite ? QueryCondition.equals("name", table) : null, null);
+        SelectResults results = SelectResults.parse(this, table, executeQuery(query), type == RDBMS.SQLite ? QueryCondition.equals("name", table) : null, null, null);
         return results.get(0).get(results.getColumns().get(0)).toString();
     }
 
@@ -656,7 +770,7 @@ public class Database {
      *     <li><b>Any number</b>: String representation of said number</li>
      *     <li><b>Byte array</b>: a hex String representing the given bytes</li>
      *     <li><b>{@link QueryFunction}</b>: the {@link QueryFunction}'s function</li>
-     *     <li><b>Type registered with {@link #registerTypeConverter(Class, Function)}</b>: the result of the registered type converter</li>
+     *     <li><b>Type registered with {@link #registerTypeConverter(Class, Function, Function)}</b>: the result of the registered type converter</li>
      *     <li><b>Anything else</b>: an {@link #enquote(String) enquoted} String representation</li>
      * </ul>
      * @param o The object to convert.
@@ -665,20 +779,41 @@ public class Database {
     public static String getAsString(Object o) {
         if (o == null) return "null";
         else if (o instanceof Number) return o.toString();
-        else if (o instanceof byte[]) return "0x" + Hex.encodeHexString((byte[]) o).toUpperCase(Locale.ROOT); // For blobs and geometry objects
+        else if (o instanceof byte[]) return "0x" + encodeHex((byte[]) o).toUpperCase(Locale.ROOT); // For blobs and geometry objects
         else if (o instanceof QueryFunction) return ((QueryFunction) o).getFunction();
         else if (classConverters.containsKey(o.getClass())) return classConverters.get(o.getClass()).apply(o);
         else return enquote(String.valueOf(o));
     }
 
+    private static String encodeHex(byte[] bytes) {
+        final char[] out = new char[bytes.length*2];
+        for (int i = 0, j = 0; i < bytes.length; i++) {
+            out[j++] = HEX_DIGITS[(0xF0 & bytes[i]) >>> 4];
+            out[j++] = HEX_DIGITS[0x0F & bytes[i]];
+        }
+        return new String(out);
+    }
+
     /**
-     * Register a type converter used to determine how to convert an object of the given {@code Class} to a String which can be used in MySQL queries.
-     * @param clazz The type of objects this converter can accept, objects extending this class must be registered separately.
-     * @param converter The function accepting the given type and outputting its String representation.
+     * Converts a String
+     * @param s The String to parse.
+     * @param clazz The type of the object you wish to parse.
+     * @param <T> The generic type of the object.
+     * @return An object
+     */
+    public static <T> T getFromString(String s, Class<T> clazz) {
+        return reverseClassConverters.containsKey(clazz) ? (T) reverseClassConverters.get(clazz).apply(s) : null;
+    }
+
+    /**
+     * Register a type converterTo used to determine how to convert an object of the given {@code Class} to a String which can be used in MySQL queries.
+     * @param clazz The type of objects this converterTo can accept, objects extending this class must be registered separately.
+     * @param converterTo The function accepting the given type and outputting its String representation.
      * @param <T> The type of objects to accept.
      */
-    public static <T> void registerTypeConverter(Class<T> clazz, Function<T, String> converter) {
-        classConverters.put(clazz, o -> converter.apply((T) o));
+    public static <T> void registerTypeConverter(Class<T> clazz, Function<T, String> converterTo, Function<String, T> converterFrom) {
+        classConverters.put(clazz, o -> converterTo.apply((T) o));
+        reverseClassConverters.put(clazz, converterFrom::apply);
     }
 
     /**
@@ -693,7 +828,6 @@ public class Database {
         tokenizer.whitespaceChars(0, 32);
         tokenizer.wordChars(33, 255);
         tokenizer.quoteChar('\'');
-        StringBuilder builder = new StringBuilder();
         try {
             tokenizer.nextToken();
             return tokenizer.sval;
@@ -702,43 +836,18 @@ public class Database {
         }
     }
 
-    /**
-     * Converts a List to a different type.
-     * @param list The list whose elements must be converted.
-     * @param converter A function accepting elements of list and outputting its representation of the requested type.
-     * @param <T> The type of the original List.
-     * @param <X> The type of the requested List.
-     * @return A list of the requested type.
-     * @see #convertMap(Map, Function)
-     */
-    public static <T, X> List<X> convertList(Iterable<T> list, Function<T, X> converter) {
-        List<X> converted = new ArrayList<>();
-        list.forEach(t -> converted.add(converter.apply(t)));
-        return converted;
-    }
-
-    /**
-     * Converts a Map to a different type.
-     * @param map The map whose entries must be converted.
-     * @param converter A bifunction accepting entries of map and outputting a {@link Pair} of new key and new value respectively.
-     * @param <OK> The original key type
-     * @param <OV> The original value type
-     * @param <NK> The new key type
-     * @param <NV> The new value type
-     * @return A map with the requested types.
-     * @see #convertList(Iterable, Function)
-     */
-    public static <OK, OV, NK, NV> Map<NK, NV> convertMap(Map<OK, OV> map, Function<Map.Entry<OK, OV>, Pair<NK, NV>> converter) {
-        Map<NK, NV> converted = map instanceof LinkedHashMap ? new LinkedHashMap<>() : new HashMap<>();
-        map.entrySet().forEach(entry -> {
-            Pair<NK, NV> pair = converter.apply(entry);
-            converted.put(pair.getLeft(), pair.getRight());
-        });
-        return converted;
-    }
-
     public enum RDBMS {
-        MySQL, SQLite, UNKNOWN
+        MySQL("com.mysql.cj.jdbc.Driver"), SQLite("org.sqlite.JDBC"), UNKNOWN(null);
+
+        private final String initialLoadClass;
+
+        RDBMS(String initialLoadClass) {
+            this.initialLoadClass = initialLoadClass;
+        }
+
+        public String getInitialLoadClass() {
+            return initialLoadClass;
+        }
     }
 
     public void logOrThrow(String msg, SQLException e) throws SilentSQLException {

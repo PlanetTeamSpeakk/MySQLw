@@ -13,6 +13,7 @@ import com.ptsmods.mysqlw.table.TablePreset;
 import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 public class DbList<E> extends AbstractList<E> implements DbCollection {
 
@@ -102,7 +103,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     @Override
     public boolean contains(Object o) {
-        return db.select(table, "val", QueryCondition.equals("val", elementToString.apply((E) o, this)), null).size() > 0;
+        return db.select(table, "val", QueryCondition.equals("val", elementToString.apply((E) o, this)), null, null).size() > 0;
     }
 
     @Nonnull
@@ -140,7 +141,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         QueryConditions condition = QueryConditions.create();
         for (Object element : c)
             condition.or(QueryCondition.equals("val", elementToString.apply((E) element, this)));
-        return db.select(table, new String[] {"val"}, condition, QueryOrder.by("id")).size() == c.size();
+        return db.select(table, new String[] {"val"}, condition, QueryOrder.by("id"), null).size() == c.size();
     }
 
     @Override
@@ -189,7 +190,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     @Override
     public E get(int index) {
-        SelectResults data = db.select(table, "val", QueryCondition.equals("id", index+1), QueryOrder.by("id"));
+        SelectResults data = db.select(table, "val", QueryCondition.equals("id", index+1), QueryOrder.by("id"), null);
         if (data.isEmpty()) throw exception(index, size());
         else return elementFromString.apply(String.valueOf(data.get(0).get("val")), this);
     }
@@ -221,13 +222,13 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     @Override
     public int indexOf(Object o) {
-        SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"));
+        SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"), null);
         return data.isEmpty() ? -1 : (Integer) data.get(0).get("id") - 1;
     }
 
     @Override
     public int lastIndexOf(Object o) {
-        SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"));
+        SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"), null);
         return data.isEmpty() ? -1 : (Integer) data.get(data.size()-1).get("id") - 1;
     }
 
@@ -274,7 +275,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
     }
 
     public List<E> toArrayList() {
-        return Database.convertList(db.select(table, "val", null, QueryOrder.by("id")), map -> elementFromString.apply(String.valueOf(map.get("val")), this));
+        return db.select(table, "val", null, QueryOrder.by("id"), null).stream().map(map -> elementFromString.apply(String.valueOf(map.get("val")), this)).collect(Collectors.toList());
     }
 
     private void fixIndexes() {

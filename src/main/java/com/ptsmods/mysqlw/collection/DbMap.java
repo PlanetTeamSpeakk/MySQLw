@@ -116,17 +116,17 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
 
     @Override
     public boolean containsKey(Object key) {
-        return db.select(table, "m_key", QueryCondition.equals("m_key", keyToString.apply((K) key, this)), null).size() > 0;
+        return db.select(table, "m_key", QueryCondition.equals("m_key", keyToString.apply((K) key, this)), null, null).size() > 0;
     }
 
     @Override
     public boolean containsValue(Object value) {
-        return db.select(table, "m_val", QueryCondition.equals("m_val", value == null ? null : valueToString.apply((V) value, this)), null).size() > 0;
+        return db.select(table, "m_val", QueryCondition.equals("m_val", value == null ? null : valueToString.apply((V) value, this)), null, null).size() > 0;
     }
 
     @Override
     public V get(Object key) {
-        SelectResults data = db.select(table, "m_val", QueryCondition.equals("m_key", keyToString.apply((K) key, this)), null);
+        SelectResults data = db.select(table, "m_val", QueryCondition.equals("m_key", keyToString.apply((K) key, this)), null, null);
         if (data.isEmpty()) return null;
         else return data.get(0).get("m_val") == null ? null : valueFromString.apply(String.valueOf(data.get(0).get("m_val")), this);
     }
@@ -163,7 +163,7 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
     @Override
     public Set<K> keySet() {
         Set<K> keySet = new LinkedHashSet<>();
-        for (SelectResults.SelectResultRow row : db.select(table, "m_key", null, null))
+        for (SelectResults.SelectResultRow row : db.select(table, "m_key", null, null, null))
             keySet.add(keyFromString.apply(String.valueOf(row.get("m_key")), this));
         return keySet;
     }
@@ -172,7 +172,7 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
     @Override
     public Collection<V> values() {
         List<V> values = new ArrayList<>();
-        for (SelectResults.SelectResultRow row : db.select(table, "m_val", null, null))
+        for (SelectResults.SelectResultRow row : db.select(table, "m_val", null, null, null))
             values.add(row.get("m_val") == null ? null : valueFromString.apply(String.valueOf(row.get("m_val")), this));
         return values;
     }
@@ -180,7 +180,7 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
     @Nonnull
     @Override
     public Set<Entry<K, V>> entrySet() {
-        SelectResults data = db.select(table, new String[] {"m_key", "m_val"}, null, null);
+        SelectResults data = db.select(table, new String[] {"m_key", "m_val"}, null, null, null);
         Set<Entry<K, V>> entrySet = new LinkedHashSet<>();
         for (SelectResults.SelectResultRow row : data)
             entrySet.add(new Entry<K, V>() {
