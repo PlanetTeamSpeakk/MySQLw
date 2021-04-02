@@ -9,6 +9,7 @@ import com.ptsmods.mysqlw.collection.DbSet;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.QueryConditions;
 import com.ptsmods.mysqlw.table.ColumnType;
+import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
@@ -171,5 +172,13 @@ class SQLiteTest {
         UUID id = UUID.randomUUID();
         assertEquals(1, getDb().insert("typetest", "id", id));
         assertEquals(id, getDb().select("typetest", "id").get(0).get("id", UUID.class));
+    }
+
+
+    @Test
+    void createIndex() throws SQLException {
+        TablePreset.create("indextest").putColumn("col", ColumnType.TEXT.createStructure()).create(getDb());
+        assertDoesNotThrow(() -> getDb().createIndex("indextest", TableIndex.index("fulltexttest", "col", TableIndex.Type.INDEX)));
+        getDb().drop("indextest");
     }
 }

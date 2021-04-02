@@ -49,7 +49,7 @@ public class ColumnStructure<S> {
 
     /**
      * Run and return the value of the supplier of the selected {@link ColumnType}.
-     * <p style="font-weight: bold; color: red; font-size: 25px;">THIS MUST BE RAN UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
+     * <p style="font-weight: bold; color: red; font-size: 18px;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
      * @param run The function that gets the supplier and returns its value.
      * @return This structure
      */
@@ -191,7 +191,7 @@ public class ColumnStructure<S> {
         if (primary) builder.append(" PRIMARY KEY");
         if (autoIncrement) builder.append(type == Database.RDBMS.SQLite ? " AUTOINCREMENT" : " AUTO_INCREMENT");
         if (unique) builder.append(" UNIQUE");
-        if (defValue != null) builder.append(" DEFAULT ").append(defValue.name());
+        if (defValue != null) builder.append(" DEFAULT ").append(defValue.getDefString());
         builder.append(nullAllowed || defValue == ColumnDefault.NULL ? " NULL" : " NOT NULL");
         if (comment != null) builder.append(" COMMENT ").append(Database.enquote(comment));
         if (extra != null) builder.append(" ").append(extra);

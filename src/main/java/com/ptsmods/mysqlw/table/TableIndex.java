@@ -5,18 +5,18 @@ package com.ptsmods.mysqlw.table;
  */
 public class TableIndex {
 
-    public static TableIndex index(String name, String column, TableIndexType type) {
+    public static TableIndex index(String name, String column, Type type) {
         return new TableIndex(name, column, type);
     }
 
-    public static TableIndex index(String column, TableIndexType type) {
+    public static TableIndex index(String column, Type type) {
         return new TableIndex(null, column, type);
     }
 
     private final String name, column;
-    private final TableIndexType type;
+    private final Type type;
 
-    private TableIndex(String name, String column, TableIndexType type) {
+    private TableIndex(String name, String column, Type type) {
         this.name = name;
         this.column = column;
         this.type = type;
@@ -30,7 +30,7 @@ public class TableIndex {
         return column;
     }
 
-    public TableIndexType getType() {
+    public Type getType() {
         return type;
     }
 
@@ -41,10 +41,14 @@ public class TableIndex {
 
     @Override
     public String toString() {
-        return type.toString(name, column);
+        return toString(true);
     }
 
-    public enum TableIndexType {
+    public String toString(boolean includeColumn) {
+        return type.toString(name, column, includeColumn);
+    }
+
+    public enum Type {
         /**
          * Each row must have a unique value for this column.
          */
@@ -59,12 +63,12 @@ public class TableIndex {
          */
         FULLTEXT,
         /**
-         * Indexes for {@link ColumnType#GEOMETRY GEOMETRY} objects.
+         * Indices for {@link ColumnType#GEOMETRY GEOMETRY} objects.
          */
         SPATIAL;
 
-        public String toString(String name, String column) {
-            return (this == INDEX ? "" : name() + " ") + "INDEX " + (name == null ? "" : "`" + name + "` ") + "(`" + column + "`)";
+        public String toString(String name, String column, boolean includeColumn) {
+            return (this == INDEX ? "" : name() + " ") + "INDEX " + (name == null ? "" : "`" + name + "` ") + (includeColumn ? "(`" + column + "`)" : "");
         }
     }
 }

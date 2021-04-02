@@ -1,6 +1,7 @@
 package com.ptsmods.mysqlw;
 
 import com.ptsmods.mysqlw.query.*;
+import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -13,6 +14,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.sql.*;
 import java.util.*;
 import java.util.function.Function;
@@ -59,9 +62,9 @@ public class Database {
                 URLConnection connection = versionCheckUrl.openConnection();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                 String line;
-                while ((line = reader.readLine()) != null)
-                    if (line.trim().startsWith("<release>") && line.endsWith("</release>")) {
-                        version = line.trim().substring("<release>".length(), line.trim().length() - "</release>".length());
+                while ((line = reader.readLine()) != null && !(line = line.trim()).isEmpty())
+                    if (line.startsWith("<release>") && line.endsWith("</release>")) {
+                        version = line.substring("<release>".length(), line.length() - "</release>".length());
                         break;
                     }
                 reader.close();
@@ -77,11 +80,8 @@ public class Database {
                 default:
                     downloadUrl = null;
             }
-            try (BufferedInputStream in = new BufferedInputStream(new URL(downloadUrl).openStream()); FileOutputStream out = new FileOutputStream(file)) {
-                byte[] buf = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = in.read(buf, 0, 1024)) != -1)
-                    out.write(buf, 0, bytesRead);
+            try (ReadableByteChannel rbc = Channels.newChannel(new URL(downloadUrl).openStream()); FileOutputStream fos = new FileOutputStream(file)) {
+                fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
             }
             addToClassPath(file, type.getInitialLoadClass());
         }
@@ -141,7 +141,7 @@ public class Database {
     public static Database connect(String host, int port, String name, String username, String password) throws SQLException {
         checkNotNull(host, "host");
         checkNotNull(name, "name");
-        Database db = new Database(RDBMS.MySQL, DriverManager.getConnection("jdbc:mysql://" + host + ":" + port, username, password), name);
+        Database db = new Database(RDBMS.MySQL, DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/?autoReconnect=true", username, password), name);
         db.execute("CREATE DATABASE IF NOT EXISTS " + name + ";"); // Create database if it does not yet exist.
         db.getConnection().setCatalog(name);
         return db;
@@ -265,7 +265,7 @@ public class Database {
      * @return The amount of results found or {@code -1} if an error occurred.
      */
     public int count(String table, String what, QueryCondition condition) throws SilentSQLException {
-        ResultSet set = executeQuery("SELECT count(" + what + ") FROM " + engrave(table) + (condition == null ? "" : " " + condition) + ";");
+        ResultSet set = executeQuery("SELECT count(" + what + ") FROM " + engrave(table) + (condition == null ? "" : " WHERE " + condition) + ";");
         try {
             set.next();
             int i = set.getInt(1);
@@ -376,7 +376,7 @@ public class Database {
                 .append(" FROM ").append(engrave(table))
                 .append(condition == null ? "" : " WHERE " + condition)
                 .append(order == null ? "" : " ORDER BY " + order)
-                .append(limit == null ? "" : limit.toString());
+                .append(limit == null ? "" : " " + limit.toString());
         return executeQuery(query.toString() + ";");
     }
 
@@ -712,6 +712,17 @@ public class Database {
         String query = type == RDBMS.SQLite ? "SELECT sql FROM sqlite_master WHERE name=" + enquote(table) + ";" : "SHOW CREATE TABLE " + engrave(table) + ";";
         SelectResults results = SelectResults.parse(this, table, executeQuery(query), type == RDBMS.SQLite ? QueryCondition.equals("name", table) : null, null, null);
         return results.get(0).get(results.getColumns().get(0)).toString();
+    }
+
+    /**
+     * Create a new index on an existing column in an existing table.
+     * This is the only way to create indices on SQLite.
+     * @param table The table to create the index on.
+     * @param index The index to create.
+     */
+    public void createIndex(String table, TableIndex index) {
+        if (index.getName() == null || index.getName().isEmpty()) throw new IllegalArgumentException("When creating a standalone index, the index must have a name.");
+        execute("CREATE " + index.toString(false) + "ON " + engrave(table) + " (" + engrave(index.getColumn()) + ");");
     }
 
     @Override

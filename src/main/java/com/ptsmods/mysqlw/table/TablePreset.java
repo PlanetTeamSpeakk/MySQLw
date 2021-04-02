@@ -3,7 +3,6 @@ package com.ptsmods.mysqlw.table;
 import com.google.common.collect.ImmutableList;
 import com.ptsmods.mysqlw.Database;
 import com.google.common.collect.ImmutableMap;
-import com.ptsmods.mysqlw.Pair;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -20,7 +19,7 @@ public class TablePreset {
     }
 
     private final Map<String, ColumnStructure<?>> columns = new LinkedHashMap<>();
-    private final Map<TableIndexType.Type, TableIndexType> indices = new HashMap<>();
+    private final List<TableIndex> indices = new ArrayList<>();
     private String name;
 
     private TablePreset(String name) {
@@ -73,22 +72,22 @@ public class TablePreset {
     }
 
     /**
-     * Adds a {@link TableIndexType} to this preset.
-     * @param index The {@link TableIndexType} to add
+     * Adds a {@link TableIndex} to this preset.
+     * @param index The {@link TableIndex} to add
      * @return This TablePreset
      */
-    public TablePreset addIndex(TableIndexType index) {
-        indices.put(index.getType(), index);
+    public TablePreset addIndex(TableIndex index) {
+        indices.add(index);
         return this;
     }
 
     /**
      * Removes an index by its type.
-     * @param type The type of the index to remove.
+     * @param index The index to remove.
      * @return This TablePreset
      */
-    public TablePreset removeIndex(TableIndexType type) {
-        indices.remove(type.getType());
+    public TablePreset removeIndex(TableIndex index) {
+        indices.removeIf(index0 -> index0 == index);
         return this;
     }
 
@@ -100,24 +99,20 @@ public class TablePreset {
     }
 
     public Map<String, String> build(Database.RDBMS type) {
-        return columns.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().toString(type)));
+        return columns.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().toString(type), (e1, e2) -> e1, LinkedHashMap::new));
     }
 
     public String buildQuery(Database.RDBMS type) {
         StringBuilder query = new StringBuilder("CREATE TABLE IF NOT EXISTS " + getName() + " (");
         build(type).forEach((key, value) -> query.append(key).append(' ').append(value).append(", "));
-        if (type != Database.RDBMS.SQLite) getIndices().forEach(index -> query.append(index).append(", ")); // Indices do not work on SQLite apparently.
+        if (type != Database.RDBMS.SQLite) getIndices().forEach(index -> query.append(index).append(", ")); // Indices do not work on SQLite apparently when creating a table.
         if (getColumns().size() > 0) query.delete(query.length() - 2, query.length());
         query.append(");");
         return query.toString();
     }
 
-    public List<TableIndexType> getIndices() {
-        return ImmutableList.copyOf(indices.values());
-    }
-
-    public TableIndexType getIndex(TableIndexType.Type type) {
-        return indices.get(type);
+    public List<TableIndex> getIndices() {
+        return ImmutableList.copyOf(indices);
     }
 
     public TablePreset create(Database db) {
@@ -125,10 +120,11 @@ public class TablePreset {
         return this;
     }
 
+    @Override
     public TablePreset clone() {
         TablePreset clone = new TablePreset(name);
         clone.putAll(columns.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().clone())));
-        clone.indices.putAll(indices.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().clone())));
+        clone.indices.addAll(indices.stream().map(TableIndex::clone).collect(Collectors.toList()));
         return clone;
     }
 

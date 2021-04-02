@@ -5,7 +5,7 @@ import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.SelectResults;
 import com.ptsmods.mysqlw.table.ColumnType;
-import com.ptsmods.mysqlw.table.TableIndexType;
+import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
 
 import javax.annotation.Nonnull;
@@ -21,7 +21,7 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
                     .setPrimary(true)
                     .setNullAllowed(false))
             .putColumn("m_val", ColumnType.TEXT.createStructure())
-            .addIndex(TableIndexType.index("m_key", TableIndexType.Type.FULLTEXT));
+            .addIndex(TableIndex.index("m_key", TableIndex.Type.FULLTEXT));
     private static final Map<String, DbMap<?, ?>> cache = new HashMap<>();
     private final Database db;
     private final String table;

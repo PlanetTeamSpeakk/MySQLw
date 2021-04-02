@@ -24,10 +24,26 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
     private final List<String> columns;
     private final List<SelectResultRow> data;
 
+    /**
+     * Parse a ResultSet into a SelectResults object.
+     * @param set The ResultSet to parse.
+     * @return The SelectResults object that was parsed from this set.
+     * @see #parse(Database, String, ResultSet, QueryCondition, QueryOrder, QueryLimit)
+     */
     public static SelectResults parse(ResultSet set) {
         return parse(null, null, set, null, null, null);
     }
 
+    /**
+     * Parse a ResultSet into a SelectResults object.
+     * @param db The Database this ResultSet was created with.
+     * @param table The table this ResultSet contains rows of.
+     * @param set The ResultSet to parse.
+     * @param condition The condition used when getting this ResultSet.
+     * @param order The order in which the rows of this ResultSet are sorted.
+     * @param limit The maximum amount of rows this ResultSet can contain.
+     * @return The SelectResults object that was parsed from this set.
+     */
     public static SelectResults parse(Database db, String table, ResultSet set, QueryCondition condition, QueryOrder order, QueryLimit limit) {
         List<String> columns = new ArrayList<>();
         boolean columnsFilled = false;
