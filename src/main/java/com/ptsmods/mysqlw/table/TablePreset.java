@@ -5,6 +5,7 @@ import com.ptsmods.mysqlw.Database;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class TablePreset {
@@ -118,6 +119,10 @@ public class TablePreset {
     public TablePreset create(Database db) {
         db.createTable(this);
         return this;
+    }
+
+    public CompletableFuture<TablePreset> createAsync(Database db) {
+        return db.createTableAsync(this).thenApply(v -> this);
     }
 
     @Override

@@ -12,9 +12,14 @@ import com.ptsmods.mysqlw.table.TablePreset;
 
 import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("unused")
 public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     private static final TablePreset preset = TablePreset.create("list_")
@@ -30,6 +35,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
     private final String name;
     private final BiFunction<E, DbCollection, String> elementToString;
     private final BiFunction<String, DbCollection, E> elementFromString;
+    private Executor executor;
 
     /**
      * Parses a String representation of a DbList into a DbList.
@@ -65,6 +71,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
      * @param <E> The type of the elements in this set.
      * @return A new DbList or a cached one if available.
      */
+    @SuppressWarnings("unchecked")
     public static <E> DbList<E> getList(Database db, String name, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
         if (cache.containsKey(name))
             try {
@@ -75,7 +82,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         else return new DbList<>(db, name, elementToString, elementFromString);
     }
 
-    private DbList(Database db, String name, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
+    private DbList(@Nonnull Database db, @Nonnull String name, @Nonnull BiFunction<E, DbCollection, String> elementToString, @Nonnull BiFunction<String, DbCollection, E> elementFromString) {
         if (cache.containsKey(name)) throw new IllegalArgumentException("A DbList by this name already exists.");
         Preconditions.checkNotNull(db, "database");
         Preconditions.checkNotNull(elementToString, "elementToString");
@@ -88,7 +95,25 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         preset.create(db);
         this.elementToString = elementToString;
         this.elementFromString = elementFromString;
+        // Not thread-safe so we use a fixed pool.
+        executor = Executors.newFixedThreadPool(1, r -> new Thread(r, "Database List Thread - " + db.getName() + ":" + name));
         cache.put(name, this);
+    }
+
+    public void setExecutor(Executor executor) {
+        this.executor = executor;
+    }
+
+    public Executor getExecutor() {
+        return executor;
+    }
+
+    public <T> CompletableFuture<T> runAsync(Supplier<T> sup) {
+        return CompletableFuture.supplyAsync(sup, getExecutor());
+    }
+
+    public CompletableFuture<Void> runAsync(Runnable run) {
+        return CompletableFuture.runAsync(run, getExecutor());
     }
 
     @Override
@@ -96,14 +121,29 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return db.count(table, "val", null);
     }
 
+    @Nonnull
+    public CompletableFuture<Integer> sizeAsync() {
+        return runAsync(this::size);
+    }
+
     @Override
     public boolean isEmpty() {
         return size() == 0;
     }
 
+    @Nonnull
+    public CompletableFuture<Boolean> isEmptyAsync() {
+        return runAsync(this::isEmpty);
+    }
+
     @Override
     public boolean contains(Object o) {
         return db.select(table, "val", QueryCondition.equals("val", elementToString.apply((E) o, this)), null, null).size() > 0;
+    }
+
+    @Nonnull
+    public CompletableFuture<Boolean> containsAsync(Object o) {
+        return runAsync(() -> contains(o));
     }
 
     @Nonnull
@@ -113,9 +153,18 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
     }
 
     @Nonnull
+    public CompletableFuture<Iterator<E>> iteratorAsync() {
+        return toArrayListAsync().thenApply(List::iterator);
+    }
+
+    @Nonnull
     @Override
     public Object[] toArray() {
         return toArrayList().toArray();
+    }
+
+    public CompletableFuture<Object[]> toArrayAsync() {
+        return toArrayListAsync().thenApply(List::toArray);
     }
 
     @Nonnull
@@ -124,9 +173,18 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return toArrayList().toArray(a);
     }
 
+    @Nonnull
+    public <T> CompletableFuture<T[]> toArrayAsync(@Nonnull T[] a) {
+        return toArrayListAsync().thenApply(l -> l.toArray(a));
+    }
+
     @Override
     public boolean add(E e) {
         return db.insert(table, "val", elementToString.apply(e, this)) == 1;
+    }
+
+    public CompletableFuture<Boolean> addAsync(E e) {
+        return runAsync(() -> add(e));
     }
 
     @Override
@@ -134,6 +192,10 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         boolean b = db.delete(table, QueryCondition.equals("val", elementToString.apply((E) o, this))) > 0;
         fixIndexes();
         return b;
+    }
+
+    public CompletableFuture<Boolean> removeAsync(Object o) {
+        return runAsync(() -> remove(o));
     }
 
     @Override
@@ -144,12 +206,20 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return db.select(table, new String[] {"val"}, condition, QueryOrder.by("id"), null).size() == c.size();
     }
 
+    public CompletableFuture<Boolean> containsAllAsync(@Nonnull Collection<?> c) {
+        return runAsync(() -> containsAll(c));
+    }
+
     @Override
     public boolean addAll(@Nonnull Collection<? extends E> c) {
         List<Object[]> values = new ArrayList<>();
         for (E element : c)
             values.add(new Object[] {elementToString.apply(element, this)});
         return db.insert(table, new String[] {"val"}, values) > 0;
+    }
+
+    public CompletableFuture<Boolean> addAllAsync(@Nonnull Collection<? extends E> c) {
+        return runAsync(() -> addAll(c));
     }
 
     @Override
@@ -163,6 +233,10 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return b;
     }
 
+    public CompletableFuture<Boolean> addAllAsync(int index, @Nonnull Collection<? extends E> c) {
+        return runAsync(() -> addAll(index, c));
+    }
+
     @Override
     public boolean removeAll(@Nonnull Collection<?> c) {
         QueryConditions condition = QueryConditions.create();
@@ -171,6 +245,10 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         int i = db.delete(table, condition);
         fixIndexes();
         return i > 0;
+    }
+
+    public CompletableFuture<Boolean> removeAllAsync(@Nonnull Collection<?> c) {
+        return runAsync(() -> removeAll(c));
     }
 
     @Override
@@ -182,10 +260,18 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return b;
     }
 
+    public CompletableFuture<Boolean> retainAllAsync(@Nonnull Collection<?> c) {
+        return runAsync(() -> retainAll(c));
+    }
+
     @Override
     public void clear() {
         db.truncate(table);
         if (db.getType() == Database.RDBMS.SQLite) db.delete("sqlite_sequence", QueryCondition.equals("name", table));
+    }
+
+    public CompletableFuture<Void> clearAsync() {
+        return runAsync(this::clear);
     }
 
     @Override
@@ -193,6 +279,10 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         SelectResults data = db.select(table, "val", QueryCondition.equals("id", index+1), QueryOrder.by("id"), null);
         if (data.isEmpty()) throw exception(index, size());
         else return elementFromString.apply(String.valueOf(data.get(0).get("val")), this);
+    }
+
+    public CompletableFuture<E> getAsync(int index) {
+        return runAsync(() -> get(index));
     }
 
     @Override
@@ -203,12 +293,20 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return val;
     }
 
+    public CompletableFuture<E> setAsync(int index, E element) {
+        return runAsync(() -> set(index, element));
+    }
+
     @Override
     public void add(int index, E element) {
         List<E> list = toArrayList();
         list.add(index, element);
         clear();
         addAll(list);
+    }
+
+    public CompletableFuture<Void> addAsync(int index, E element) {
+        return runAsync(() -> add(index, element));
     }
 
     @Override
@@ -220,16 +318,28 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return element;
     }
 
+    public CompletableFuture<E> removeAsync(int index) {
+        return runAsync(() -> remove(index));
+    }
+
     @Override
     public int indexOf(Object o) {
         SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"), null);
         return data.isEmpty() ? -1 : (Integer) data.get(0).get("id") - 1;
     }
 
+    public CompletableFuture<Integer> indexOfAsync(Object o) {
+        return runAsync(() -> indexOf(o));
+    }
+
     @Override
     public int lastIndexOf(Object o) {
         SelectResults data = db.select(table, "id", QueryCondition.equals("val", elementToString.apply((E) o, this)), QueryOrder.by("id"), null);
         return data.isEmpty() ? -1 : (Integer) data.get(data.size()-1).get("id") - 1;
+    }
+
+    public CompletableFuture<Integer> lastIndexOfAsync(Object o) {
+        return runAsync(() -> lastIndexOf(o));
     }
 
     @Nonnull
@@ -239,9 +349,19 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
     }
 
     @Nonnull
+    public CompletableFuture<ListIterator<E>> listIteratorAsync() {
+        return toArrayListAsync().thenApply(List::listIterator);
+    }
+
+    @Nonnull
     @Override
     public ListIterator<E> listIterator(int index) {
         return toArrayList().listIterator(index);
+    }
+
+    @Nonnull
+    public CompletableFuture<ListIterator<E>> listIteratorAsync(int index) {
+        return toArrayListAsync().thenApply(l -> l.listIterator(index));
     }
 
     @Nonnull
@@ -256,26 +376,39 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
         return list;
     }
 
+    @Nonnull
+    public CompletableFuture<List<E>> subListAsync(int fromIndex, int toIndex) {
+        return runAsync(() -> subList(fromIndex, toIndex));
+    }
+
     @Override
     public String toString() {
         return "DbList[name='" + getName() + "',values=" + super.toString() + "]";
     }
 
+    @Nonnull
     public Database getDb() {
         return db;
     }
 
+    @Nonnull
     @Override
     public String getTable() {
         return table;
     }
 
+    @Nonnull
     public String getName() {
         return name;
     }
 
+    @Nonnull
     public List<E> toArrayList() {
         return db.select(table, "val", null, QueryOrder.by("id"), null).stream().map(map -> elementFromString.apply(String.valueOf(map.get("val")), this)).collect(Collectors.toList());
+    }
+
+    public CompletableFuture<List<E>> toArrayListAsync() {
+        return runAsync(this::toArrayList);
     }
 
     private void fixIndexes() {
@@ -290,5 +423,13 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     private static IndexOutOfBoundsException exception(int index, int size) {
         return new IndexOutOfBoundsException("Index: "+index+", Size: "+size);
+    }
+
+    public BiFunction<String, DbCollection, E> getElementFromString() {
+        return elementFromString;
+    }
+
+    public BiFunction<E, DbCollection, String> getElementToString() {
+        return elementToString;
     }
 }

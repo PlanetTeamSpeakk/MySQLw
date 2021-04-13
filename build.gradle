@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'com.ptsmods'
-version '1.4'
+version '1.5.1'
 
 repositories {
     mavenLocal()
@@ -14,7 +14,6 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.jetbrains:annotations:20.1.0'
     compile group: 'com.google.guava', name: 'guava', version: '30.1-jre'
     compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.22', optional
     compile group: 'org.xerial', name: 'sqlite-jdbc', version: '3.34.0', optional
@@ -26,7 +25,6 @@ tasks.withType(JavaCompile) {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 }
-
 
 task sourceJar(type: Jar) {
     classifier "sources"

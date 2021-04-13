@@ -9,10 +9,15 @@ import com.ptsmods.mysqlw.table.TablePreset;
 
 import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
+@SuppressWarnings("unused")
 public class DbSet<E> extends AbstractSet<E> implements DbCollection {
-
     private static final TablePreset preset = TablePreset.create("set_").putColumn("value", ColumnType.VARCHAR.createStructure().satiateSupplier(sup -> sup.apply(255)).setPrimary(true).setNullAllowed(false).setUnique(true));
     private static final Map<String, DbSet<?>> cache = new HashMap<>();
     private final Database db;
@@ -20,6 +25,7 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
     private final String name;
     private final BiFunction<E, DbCollection, String> elementToString;
     private final BiFunction<String, DbCollection, E> elementFromString;
+    private Executor executor;
 
     /**
      * Parses a String representation of a DbSet into a DbSet.
@@ -30,8 +36,8 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
      * @param <E> The type of the elements in this set.
      * @return A new DbSet or a cached one if available.
      */
-    public static <E> DbSet<E> parseString(Database db, String s, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
-        return s.startsWith("DbSet[name=") ? getSet(db, Database.readQuotedString(s.substring("DbSet[name=".length())), elementToString, elementFromString) : null;
+    public static <E> DbSet<E> parseString(@Nonnull Database db, @Nonnull String s, @Nonnull BiFunction<E, DbCollection, String> elementToString, @Nonnull BiFunction<String, DbCollection, E> elementFromString) {
+        return s.startsWith("DbSet[name=") ? getSet(db, Objects.requireNonNull(Database.readQuotedString(s.substring("DbSet[name=".length()))), elementToString, elementFromString) : null;
     }
 
     /**
@@ -42,7 +48,7 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
      * @param <E> The type of the elements in this set.
      * @return A new DbSet or a cached one if available.
      */
-    public static <E> DbSet<E> getSet(Database db, String name, Class<E> type) {
+    public static <E> DbSet<E> getSet(@Nonnull Database db, @Nonnull String name, @Nonnull Class<E> type) {
         return getSet(db, name, DbCF.getTo(type), DbCF.getFrom(type));
     }
 
@@ -55,7 +61,8 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
      * @param <E> The type of the elements in this set.
      * @return A new DbSet or a cached one if available.
      */
-    public static <E> DbSet<E> getSet(Database db, String name, BiFunction<E, DbCollection, String> elementToString, BiFunction<String, DbCollection, E> elementFromString) {
+     @SuppressWarnings("unchecked")
+    public static <E> DbSet<E> getSet(@Nonnull Database db, @Nonnull String name, @Nonnull BiFunction<E, DbCollection, String> elementToString, @Nonnull BiFunction<String, DbCollection, E> elementFromString) {
         if (cache.containsKey(name))
             try {
                 return (DbSet<E>) cache.get(name);
@@ -76,12 +83,35 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         preset.setName(table).create(db);
         this.elementToString = elementToString;
         this.elementFromString = elementFromString;
+        // Not thread-safe so we use a fixed pool.
+        executor = Executors.newFixedThreadPool(1, r -> new Thread(r, "Database Set Thread - " + name + ":" + db.getName()));
         cache.put(name, this);
+    }
+
+    public void setExecutor(Executor executor) {
+        this.executor = executor;
+    }
+
+    public Executor getExecutor() {
+        return executor;
+    }
+
+    public <T> CompletableFuture<T> runAsync(Supplier<T> sup) {
+        return CompletableFuture.supplyAsync(sup, getExecutor());
+    }
+
+    public CompletableFuture<Void> runAsync(Runnable run) {
+        return CompletableFuture.runAsync(run, getExecutor());
     }
 
     @Override
     public int size() {
-        return db.select(table, "value", null, null, null).size();
+        return db.count(table, "value", null);
+    }
+
+    @Nonnull
+    public CompletableFuture<Integer> sizeAsync() {
+        return runAsync(this::size);
     }
 
     @Override
@@ -89,9 +119,19 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         return size() == 0;
     }
 
+    @Nonnull
+    public CompletableFuture<Boolean> isEmptyAsync() {
+        return runAsync(this::isEmpty);
+    }
+
     @Override
     public boolean contains(Object o) {
         return db.select(table, "value", QueryCondition.equals("value", elementToString.apply((E) o, this)), null, null).size() > 0;
+    }
+
+    @Nonnull
+    public CompletableFuture<Boolean> containsAsync(Object o) {
+        return runAsync(() -> contains(o));
     }
 
     @Nonnull
@@ -101,15 +141,29 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
     }
 
     @Nonnull
+    public CompletableFuture<Iterator<E>> iteratorAsync() {
+        return toHashSetAsync().thenApply(Set::iterator);
+    }
+
+    @Nonnull
     @Override
     public Object[] toArray() {
         return toHashSet().toArray();
     }
 
+    public CompletableFuture<Object[]> toArrayAsync() {
+        return toHashSetAsync().thenApply(Set::toArray);
+    }
+
     @Nonnull
     @Override
-    public <T> T[] toArray(T[] a) {
+    public <T> T[] toArray(@Nonnull T[] a) {
         return toHashSet().toArray(a);
+    }
+
+    @Nonnull
+    public <T> CompletableFuture<T[]> toArrayAsync(@Nonnull T[] a) {
+        return toHashSetAsync().thenApply(l -> l.toArray(a));
     }
 
     @Override
@@ -117,9 +171,17 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         return db.insertIgnore(table, "value", elementToString.apply(e, this)) > 0;
     }
 
+    public CompletableFuture<Boolean> addAsync(E e) {
+        return runAsync(() -> add(e));
+    }
+
     @Override
     public boolean remove(Object o) {
         return db.delete(table, QueryCondition.equals("value", elementToString.apply((E) o, this))) > 0;
+    }
+
+    public CompletableFuture<Boolean> removeAsync(Object o) {
+        return runAsync(() -> remove(o));
     }
 
     @Override
@@ -130,11 +192,19 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         return db.select(table, new String[] {"value"}, condition, null, null).size() == c.size();
     }
 
+    public CompletableFuture<Boolean> containsAllAsync(@Nonnull Collection<?> c) {
+        return runAsync(() -> containsAll(c));
+    }
+
     @Override
     public boolean addAll(Collection<? extends E> c) {
         List<Object[]> values = new ArrayList<>();
         c.forEach(e -> values.add(new Object[] {elementToString.apply(e, this)}));
         return db.replace(table, new String[] {"value"}, values) > 0;
+    }
+
+    public CompletableFuture<Boolean> addAllAsync(@Nonnull Collection<? extends E> c) {
+        return runAsync(() -> addAll(c));
     }
 
     @Override
@@ -144,6 +214,10 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         return db.delete(table, condition) > 0;
     }
 
+    public CompletableFuture<Boolean> retainAllAsync(@Nonnull Collection<?> c) {
+        return runAsync(() -> retainAll(c));
+    }
+
     @Override
     public boolean removeAll(Collection<?> c) {
         QueryConditions condition = QueryConditions.create();
@@ -151,9 +225,17 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         return db.delete(table, condition) > 0;
     }
 
+    public CompletableFuture<Boolean> removeAllAsync(@Nonnull Collection<?> c) {
+        return runAsync(() -> removeAll(c));
+    }
+
     @Override
     public void clear() {
         db.truncate(table);
+    }
+
+    public CompletableFuture<Void> clearAsync() {
+        return runAsync(this::clear);
     }
 
     @Override
@@ -176,9 +258,23 @@ public class DbSet<E> extends AbstractSet<E> implements DbCollection {
         return "DbSet[name='" + getName() + "',values=" + super.toString() + "]";
     }
 
+    @Nonnull
     public Set<E> toHashSet() {
-        Set<E> set = new HashSet<>();
-        db.select(table, "value", null, null, null).forEach(row -> set.add(elementFromString.apply(row.get("value").toString(), this)));
-        return set;
+        return db.select(table, "value", null, null, null).stream().map(row -> elementFromString.apply(row.getString("value"), this)).collect(Collectors.toSet());
+    }
+
+    @Nonnull
+    public CompletableFuture<Set<E>> toHashSetAsync() {
+        return runAsync(this::toHashSet);
+    }
+
+    @Nonnull
+    public BiFunction<E, DbCollection, String> getElementToString() {
+        return elementToString;
+    }
+
+    @Nonnull
+    public BiFunction<String, DbCollection, E> getElementFromString() {
+        return elementFromString;
     }
 }

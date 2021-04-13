@@ -14,6 +14,7 @@ import java.util.function.Function;
  * Returned when you use any of the select methods in {@link Database}.
  * Contains all data you need.
  */
+@SuppressWarnings("unused")
 public class SelectResults implements List<SelectResults.SelectResultRow> {
 
     private final Database db;

@@ -1,7 +1,5 @@
 package com.ptsmods.mysqlw.query;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * To make sure that functions don't get enquoted when putting them in a query, wrap them in this class.
  * An example would be {@code JSON_CONTAINS(`column`, '{"value": {"child": 7}}')} or {@code GeomFromText('POINT(42.8, 69.7)')} although that one is obsolete.
@@ -41,7 +39,6 @@ public class QueryFunction implements CharSequence {
         return function.subSequence(start, end);
     }
 
-    @NotNull
     @Override
     public String toString() {
         return function;

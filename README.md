@@ -5,7 +5,7 @@
 [![Lines of code](https://img.shields.io/tokei/lines/github/PlanetTeamSpeakk/MySQLw?color=%23fe7d37)](#)
 ### Link to [Javadoc](https://mysqlw.ptsmods.com)
 
-A wrapper for MySQL and SQLite (beta) connections for Java to make your life a lot easier and a lot saner when working with queries.  
+A wrapper for MySQL and SQLite connections for Java to make your life a lot easier and a lot saner when working with queries.  
 This library is merely a wrapper for the default Java SQL library intended to be used with MySQL (or MariaDB for that matter) or SQLite, this means that you also need the MySQL Java connector or the SQLite Java connector to actually connect to your database, but the `Database#loadConnector(RDBMS, File, boolean)` method allows you to add it at runtime.
 
 * [Adding MySQLw to your project](#adding-mysqlw-to-your-project)
@@ -21,12 +21,13 @@ This library is merely a wrapper for the default Java SQL library intended to be
   + [Database-backed collections](#database-backed-collections)
   + [Type conversion](#type-conversion)
   + [Other smaller features](#other-smaller-features)
+* [Async](#async)
 
 ## Adding MySQLw to your project
 ### Gradle
 To add MySQLw to your Gradle project, add the following line to your dependencies:
 ```gradle
-compile 'com.ptsmods:MySQLw:1.4'
+compile 'com.ptsmods:MySQLw:1.5.1'
 ```
 
 ### Maven
@@ -35,7 +36,7 @@ To add MySQLw to your Maven project, add the following code segment to your pom.
 <dependency>
   <groupId>com.ptsmods</groupId>
   <artifactId>MySQLw</artifactId>
-  <version>1.4</version>
+  <version>1.5.1</version>
 </dependency>
 ```
 
@@ -63,7 +64,7 @@ Database db = Database.connect(new File("sqlite.db"));
 Instead of shadowing the connector library for the Relation Database Management System (RDBMS), you can download and load it with `Database#loadConnector(RDBMS, File, boolean)`.  
 For instance, if you wish to download the MySQL connector and add it to the classpath, you can use
 ```java
-Database.loadConnector(Database.RDBMS.MySQL, new File("mysql-connector.jar"), true);
+Database.loadConnector(Database.RDBMS.MySQL, "8.0.23", new File("mysql-connector.jar"), true);
 ```
 This will download the MySQL connector to `mysql-connector.jar` if it has not yet been downloaded to that location (if it has, it will ignore the downloading step as stated by the last parameter, the `useCache` boolean) and then add it to the classpath and verify that it worked.  
 If you use this method and it did not successfully manage to load the connector, it will likely throw an `IOException`.  
@@ -302,3 +303,16 @@ To completely delete a table (dropping), you can use the following code:
 ```java
 db.drop("people");
 ```
+
+## Async
+Nearly every method that uses the database connection in one way or another has an async version that uses `CompletableFuture`s to run the method asynchronously.  
+For example, to insert data asynchronously, you can do the following:
+```java
+db.selectAsync("people", "*").thenAccept(results -> {
+	// Do something with the results.
+});
+```
+This will prevent blocking the main thread or whatever thread you wish to run it on.  
+By default, these `CompletableFuture`s use an executor that suits the RDBMS type. This is a normal cached threadpool for MySQL (see `Executors#newCachedThreadPool(ThreadFactory)`) and a fixed-size threadpool that only allows one thread for SQLite. The latter is to prevent blocking.
+This executor can be gotten using `Database#getExecutor()` and set using `Database#setExecutor(executor)`.
+With asynchronous calls always comes the struggle of correctly catching exceptions, for this reason you can set your own errorhandler using `Database#setErrorHandler(Consumer)`, this consumer will then be called whenever an error was thrown during any asynchronous database call.

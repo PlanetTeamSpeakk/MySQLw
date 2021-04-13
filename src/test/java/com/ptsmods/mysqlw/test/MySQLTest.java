@@ -86,6 +86,7 @@ class MySQLTest {
     @Test
     void count() throws SQLException {
         assertEquals(2, getDb().count("testtable", "*", null));
+        getDb().countAsync("testtable", "*", null).thenAccept(i -> assertEquals(2, i));
     }
 
     @Test
