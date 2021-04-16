@@ -242,20 +242,20 @@ This preparation is known as type conversion. To register your own type converte
 An example of a type converter would be:
 ```java
 Gson gson = new Gson();
-Database.registerTypeConverter(List.class, list -> Database.enquote(gson.toJson(list)));
+Database.registerTypeConverter(List.class, list -> Database.enquote(gson.toJson(list)), s -> gson.fromJson(s, List.class));
 ```
 This would allow you to use lists when inserting data by turning the list into a JSON representation of it and enquoting it.  
 Using this newly added type converter is as simple as just passing it as a value when inserting, e.g.:
 ```java
 db.insert("data", "value", Lists.newArrayList("This is a JSON list", "with numerous values", "How neat!"));
 ```
-Which would put the string `'["This is a JSON list", "with numerous values", "How neat!"]'` into the query.
+Which would put the string `'["This is a JSON list", "with numerous values", "How neat!"]'` into the query.  
 Do not forget that enquoting is mandatory whenever you insert anything as a literal String into a table, not doing so will end up in SQLExceptions.
 
 ### Other smaller features
 #### Counting
 To count the amount of columns in a table, you can use the `Database#count(String, String, QueryCondition)` method.  
-This is basically a select query, except it only returns the requested value of count.
+This is basically a select query, except it only returns the requested value of count.  
 To use this, you could try the following code:
 ```java
 int count = db.count("people", "*", QueryCondition.like("email", "john%"));
@@ -313,6 +313,6 @@ db.selectAsync("people", "*").thenAccept(results -> {
 });
 ```
 This will prevent blocking the main thread or whatever thread you wish to run it on.  
-By default, these `CompletableFuture`s use an executor that suits the RDBMS type. This is a normal cached threadpool for MySQL (see `Executors#newCachedThreadPool(ThreadFactory)`) and a fixed-size threadpool that only allows one thread for SQLite. The latter is to prevent blocking.
-This executor can be gotten using `Database#getExecutor()` and set using `Database#setExecutor(executor)`.
+By default, these `CompletableFuture`s use an executor that suits the RDBMS type. This is a normal cached threadpool for MySQL (see `Executors#newCachedThreadPool(ThreadFactory)`) and a fixed-size threadpool that only allows one thread for SQLite. The latter is to prevent blocking.  
+This executor can be gotten using `Database#getExecutor()` and set using `Database#setExecutor(executor)`.  
 With asynchronous calls always comes the struggle of correctly catching exceptions, for this reason you can set your own errorhandler using `Database#setErrorHandler(Consumer)`, this consumer will then be called whenever an error was thrown during any asynchronous database call.
