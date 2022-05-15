@@ -104,7 +104,7 @@ class MySQLTest {
 
     @Test
     void select() throws SQLException {
-        assertEquals(2, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key2")).or(QueryCondition.equals("value", "val1")), null, null).size());
+        assertEquals(2, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key2").or(QueryCondition.equals("value", "val1")), null, null).size());
         assertEquals(1, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key2"), null, null).size());
     }
 

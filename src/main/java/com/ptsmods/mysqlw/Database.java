@@ -1,6 +1,8 @@
 package com.ptsmods.mysqlw;
 
 import com.ptsmods.mysqlw.query.*;
+import com.ptsmods.mysqlw.query.builder.InsertBuilder;
+import com.ptsmods.mysqlw.query.builder.SelectBuilder;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
 import com.google.common.collect.ImmutableMap;
@@ -90,9 +92,10 @@ public class Database {
                 e.printStackTrace();
             }
         } else
-            try {
-                new URLClassLoader(new URL[] {file.toURI().toURL()}, Database.class.getClassLoader()).loadClass(initialLoadClass);
-            } catch (ClassNotFoundException | MalformedURLException e) {
+            try (URLClassLoader loader = new URLClassLoader(new URL[] {file.toURI().toURL()}, Database.class.getClassLoader())) {
+				// This is likely not to work in many cases, but it's simply not easy to do on Java 9+.
+                loader.loadClass(initialLoadClass);
+            } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
             }
     }
@@ -314,7 +317,7 @@ public class Database {
      * @param <T> The type the given supplier returns.
      * @return A {@link} CompletableFuture.
      */
-    private <T> CompletableFuture<T> runAsync(Supplier<T> sup) {
+    public <T> CompletableFuture<T> runAsync(Supplier<T> sup) {
         return CompletableFuture.supplyAsync(sup, getExecutor()).exceptionally(t -> {
             errorHandler.apply(t);
             return null;
@@ -408,6 +411,16 @@ public class Database {
         return runAsync(() -> delete(table, condition));
     }
 
+
+	/**
+	 * Creates a new {@link SelectBuilder} to use for selecting data.
+	 * @param table The table to select from.
+	 * @return A new {@link SelectBuilder}.
+	 */
+	public SelectBuilder selectBuilder(String table) {
+		return SelectBuilder.create(this, table);
+	}
+
     /**
      * Runs a select query and returns the raw output.
      * <b>The statement used for this query is </b><p style="color: red; font-weight: bold;">not closed</p><b> so make sure to close it with {@code set.getStatement().close()}.</b>
@@ -417,7 +430,7 @@ public class Database {
      * @see #selectRawAsync(String, CharSequence)
      */
     public ResultSet selectRaw(String table, CharSequence column) {
-        return selectRaw(table, column, null, null, null);
+        return selectBuilder(table).select(column).executeRaw();
     }
 
     /**
@@ -441,7 +454,7 @@ public class Database {
      * @see #selectRawAsync(String, CharSequence, QueryCondition)
      */
     public ResultSet selectRaw(String table, CharSequence column, QueryCondition condition) {
-        return selectRaw(table, column, condition, null, null);
+        return selectBuilder(table).select(column).where(condition).executeRaw();
     }
 
     /**
@@ -469,7 +482,7 @@ public class Database {
      * @see #selectRawAsync(String, CharSequence, QueryCondition, QueryOrder, QueryLimit)
      */
     public ResultSet selectRaw(String table, CharSequence column, QueryCondition condition, QueryOrder order, QueryLimit limit) {
-        return selectRaw(table, new CharSequence[] {column}, condition, order, limit);
+        return selectBuilder(table).select(column).where(condition).order(order).limit(limit).executeRaw();
     }
 
     /**
@@ -497,7 +510,7 @@ public class Database {
      * @see #selectRawAsync(String, CharSequence[])
      */
     public ResultSet selectRaw(String table, CharSequence[] columns) {
-        return selectRaw(table, columns, null, null, null);
+        return selectBuilder(table).select(columns).executeRaw();
     }
 
     /**
@@ -521,7 +534,7 @@ public class Database {
      * @see #selectRawAsync(String, CharSequence[], QueryCondition)
      */
     public ResultSet selectRaw(String table, CharSequence[] columns, QueryCondition condition) {
-        return selectRaw(table, columns, condition, null, null);
+        return selectBuilder(table).select(columns).where(condition).executeRaw();
     }
 
     /**
@@ -549,15 +562,7 @@ public class Database {
      * @see #selectRawAsync(String, CharSequence[], QueryCondition, QueryOrder, QueryLimit)
      */
     public ResultSet selectRaw(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order, QueryLimit limit) {
-        StringBuilder query = new StringBuilder("SELECT ");
-        for (CharSequence seq : columns)
-            query.append(getAsString(seq)).append(", ");
-        query.delete(query.length()-2, query.length())
-                .append(" FROM ").append(engrave(table))
-                .append(condition == null ? "" : " WHERE " + condition)
-                .append(order == null ? "" : " ORDER BY " + order)
-                .append(limit == null ? "" : " " + limit);
-        return executeQuery(query + ";");
+        return selectBuilder(table).select(columns).where(condition).order(order).limit(limit).executeRaw();
     }
 
     /**
@@ -584,7 +589,7 @@ public class Database {
      * @see #selectAsync(String, CharSequence)
      */
     public SelectResults select(String table, CharSequence column) {
-        return select(table, new CharSequence[] {column}, null, null, null);
+        return selectBuilder(table).select(column).execute();
     }
 
     /**
@@ -607,7 +612,7 @@ public class Database {
      * @see #selectAsync(String, CharSequence, QueryCondition)
      */
     public SelectResults select(String table, CharSequence column, QueryCondition condition) {
-        return select(table, new CharSequence[] {column}, condition);
+        return selectBuilder(table).select(column).where(condition).execute();
     }
 
     /**
@@ -633,7 +638,7 @@ public class Database {
      * @see #selectAsync(String, CharSequence, QueryCondition, QueryOrder, QueryLimit)
      */
     public SelectResults select(String table, CharSequence column, QueryCondition condition, QueryOrder order, QueryLimit limit) {
-        return select(table, new CharSequence[] {column}, condition, order, limit);
+        return selectBuilder(table).select(column).where(condition).order(order).limit(limit).execute();
     }
 
     /**
@@ -658,7 +663,7 @@ public class Database {
      * @see #selectAsync(String, CharSequence[])
      */
     public SelectResults select(String table, CharSequence[] columns) {
-        return SelectResults.parse(this, table, selectRaw(table, columns, null, null, null), null, null, null);
+        return selectBuilder(table).select(columns).execute();
     }
 
     /**
@@ -681,7 +686,7 @@ public class Database {
      * @see #selectAsync(String, CharSequence[], QueryCondition)
      */
     public SelectResults select(String table, CharSequence[] columns, QueryCondition condition) {
-        return SelectResults.parse(this, table, selectRaw(table, columns, condition, null, null), condition, null, null);
+        return selectBuilder(table).select(columns).where(condition).execute();
     }
 
     /**
@@ -707,7 +712,7 @@ public class Database {
      * @see #selectAsync(String, CharSequence[], QueryCondition, QueryOrder, QueryLimit)
      */
     public SelectResults select(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order, QueryLimit limit) {
-        return SelectResults.parse(this, table, selectRaw(table, columns, condition, order, limit), condition, order, limit);
+        return selectBuilder(table).select(columns).where(condition).order(order).limit(limit).execute();
     }
 
     /**
@@ -724,9 +729,19 @@ public class Database {
         return runAsync(() -> select(table, columns, condition, order, limit));
     }
 
+	/**
+	 * Creates a new {@link InsertBuilder} to build insert queries with.
+	 * @param table The table to insert into.
+	 * @param columns The columns to insert values into.
+	 * @return A new {@link InsertBuilder}.
+	 */
+	public InsertBuilder insertBuilder(String table, String... columns) {
+		return InsertBuilder.create(this, table, columns);
+	}
+	
     /**
      * Inserts new data into the table.
-     * @param table The table to insert to.
+     * @param table The table to insert into.
      * @param column The column to insert a value into.
      * @param value The value to insert into the column.
      * @return The amount of rows affected (added).
@@ -734,12 +749,12 @@ public class Database {
      * @see #insertAsync(String, String, Object)
      */
     public int insert(String table, String column, Object value) {
-        return insert(table, new String[] {column}, new Object[] {value});
+        return insertBuilder(table, column).insert(value).execute();
     }
 
     /**
      * Inserts new data into the table asynchronously.
-     * @param table The table to insert to.
+     * @param table The table to insert into.
      * @param column The column to insert a value into.
      * @param value The value to insert into the column.
      * @return The amount of rows affected (added).
@@ -752,7 +767,7 @@ public class Database {
 
     /**
      * Inserts new data into the table.
-     * @param table The table to insert to.
+     * @param table The table to insert into.
      * @param columns The columns to insert values into.
      * @param values The values to insert into the columns.
      * @return The amount of rows affected (added).
@@ -760,12 +775,12 @@ public class Database {
      * @see #insertAsync(String, String[], Object[])
      */
     public int insert(String table, String[] columns, Object[] values) {
-        return insert(table, columns, Lists.<Object[]>newArrayList(values));
+        return insertBuilder(table, columns).insert(values).execute();
     }
 
     /**
      * Inserts new data into the table asynchronously.
-     * @param table The table to insert to.
+     * @param table The table to insert into.
      * @param columns The columns to insert values into.
      * @param values The values to insert into the columns.
      * @return The amount of rows affected (added).
@@ -778,20 +793,19 @@ public class Database {
 
     /**
      * Inserts new data into the table.
-     * @param table The table to insert to.
+     * @param table The table to insert into.
      * @param columns The columns to insert values into.
      * @param values The values to insert into the columns. Each array in this list is a new row to be inserted.
      * @return The amount of rows affected (added).
      * @see #insertAsync(String, String[], List)
      */
     public int insert(String table, String[] columns, List<Object[]> values) {
-        StringBuilder query = new StringBuilder("INSERT INTO " + engrave(table) + " (" + String.join(", ", columns) + ") VALUES ");
-        return doInsert(values, query);
+        return insertBuilder(table, columns).insert(values).execute();
     }
 
     /**
      * Inserts new data into the table asynchronously.
-     * @param table The table to insert to.
+     * @param table The table to insert into.
      * @param columns The columns to insert values into.
      * @param values The values to insert into the columns. Each array in this list is a new row to be inserted.
      * @return The amount of rows affected (added).
@@ -799,16 +813,6 @@ public class Database {
      */
     public CompletableFuture<Integer> insertAsync(String table, String[] columns, List<Object[]> values) {
         return runAsync(() -> insert(table, columns, values));
-    }
-
-    private int doInsert(List<Object[]> values, StringBuilder query) {
-        for (Object[] valuesArray : values) {
-            query.append("(");
-            for (Object value : valuesArray)
-                query.append(getAsString(value)).append(", ");
-            query.delete(query.length()-2, query.length()).append("), ");
-        }
-        return executeUpdate(query.delete(query.length()-2, query.length()).append(';').toString());
     }
 
     /**
@@ -1049,8 +1053,7 @@ public class Database {
      * @see #replaceAsync(String, String[], List)
      */
     public int replace(String table, String[] columns, List<Object[]> values) {
-        StringBuilder query = new StringBuilder("REPLACE INTO " + engrave(table) + " (`" + String.join("`, `", columns) + "`) VALUES ");
-        return doInsert(values, query);
+        return insertBuilder(table, columns).insert(values).executeReplace();
     }
 
     /**
