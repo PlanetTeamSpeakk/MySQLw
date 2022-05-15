@@ -61,7 +61,7 @@ testlogger {
 publishing {
 	publications {
 		mavenJava(MavenPublication) {
-			artifactId = "MySQLw"
+			artifactId = "mysqlw"
 			from components.java
 
 			pom {
