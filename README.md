@@ -27,7 +27,7 @@ This library is merely a wrapper for the default Java SQL library intended to be
 ### Gradle
 To add MySQLw to your Gradle project, add the following line to your dependencies:
 ```gradle
-implementation 'com.ptsmods:MySQLw:1.5.1'
+implementation 'com.ptsmods:mysqlw:1.6'
 ```
 
 ### Maven
@@ -35,8 +35,8 @@ To add MySQLw to your Maven project, add the following code segment to your pom.
 ```xml
 <dependency>
   <groupId>com.ptsmods</groupId>
-  <artifactId>MySQLw</artifactId>
-  <version>1.5.1</version>
+  <artifactId>mysqlw</artifactId>
+  <version>1.6</version>
 </dependency>
 ```
 
