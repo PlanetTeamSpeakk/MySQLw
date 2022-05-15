@@ -7,89 +7,91 @@ import com.ptsmods.mysqlw.Database;
  */
 public abstract class QueryCondition {
 
-    public static QueryCondition func(QueryFunction function) {
-        return new QueryCondition() {
+	// All methods return an instance of QueryConditions
+	// rather than QueryCondition to ease chaining.
+    public static QueryConditions func(QueryFunction function) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return function.toString();
             }
-        };
+        });
     }
 
-    public static QueryCondition equals(String key, Object value) {
-        return new QueryCondition() {
+    public static QueryConditions equals(String key, Object value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` = " + Database.getAsString(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition notEquals(String key, Object value) {
-        return new QueryCondition() {
+    public static QueryConditions notEquals(String key, Object value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` <> " + Database.getAsString(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition greater(String key, Object value) {
-        return new QueryCondition() {
+    public static QueryConditions greater(String key, Object value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` > " + Database.getAsString(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition greaterEqual(String key, Object value) {
-        return new QueryCondition() {
+    public static QueryConditions greaterEqual(String key, Object value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` >= " + Database.getAsString(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition less(String key, Object value) {
-        return new QueryCondition() {
+    public static QueryConditions less(String key, Object value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` < " + Database.getAsString(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition lessEqual(String key, Object value) {
-        return new QueryCondition() {
+    public static QueryConditions lessEqual(String key, Object value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` <= " + Database.getAsString(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition like(String key, String value) {
-        return new QueryCondition() {
+    public static QueryConditions like(String key, String value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` LIKE " + Database.enquote(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition match(String key, String value) {
-        return new QueryCondition() {
+    public static QueryConditions match(String key, String value) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 return "`" + key + "` MATCH " + Database.enquote(value);
             }
-        };
+        });
     }
 
-    public static QueryCondition in(String key, Object[] objects) {
-        return new QueryCondition() {
+    public static QueryConditions in(String key, Object[] objects) {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 StringBuilder s = new StringBuilder("`").append(key).append("` IN (");
@@ -97,11 +99,11 @@ public abstract class QueryCondition {
                     s.append(Database.getAsString(o)).append(", ");
                 return s.delete(s.length()-2, s.length()).append(")").toString();
             }
-        };
+        });
     }
 
     public static QueryCondition notIn(String key, Object[] objects) {
-        return new QueryCondition() {
+        return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
                 StringBuilder s = new StringBuilder("`").append(key).append("` NOT IN (");
@@ -109,12 +111,9 @@ public abstract class QueryCondition {
                     s.append(Database.getAsString(o)).append(", ");
                 return s.delete(s.length()-2, s.length()).append(")").toString();
             }
-        };
+        });
     }
-
-    QueryCondition() {}
 
     @Override
     public abstract String toString();
-
 }

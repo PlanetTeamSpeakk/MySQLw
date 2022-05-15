@@ -94,6 +94,9 @@ public class QueryConditions extends QueryCondition {
 
     @Override
     public String toString() {
+		// No need to use parentheses when there's only one condition.
+		if (conditions.size() == 1) return conditions.get(0).toString();
+
         StringBuilder builder = new StringBuilder("(");
         boolean first = true;
         for (Pair<ConditionKeyword, QueryCondition> condition : conditions) {
