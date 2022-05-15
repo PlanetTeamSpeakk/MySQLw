@@ -69,8 +69,6 @@ public class InsertBuilder {
 			query.delete(query.length()-2, query.length()).append("), ");
 		}
 
-		System.out.println(query);
-
 		return query.delete(query.length()-2, query.length()).append(';').toString();
 	}
 
