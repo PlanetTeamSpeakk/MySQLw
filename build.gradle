@@ -7,7 +7,7 @@ plugins {
 }
 
 group 'com.ptsmods'
-version '1.5.1'
+version '1.6'
 
 repositories {
     mavenLocal()
@@ -98,10 +98,20 @@ publishing {
 			// https://oss.sonatype.org
 			def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
 			def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+			name = "MavenCentral"
 			url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
 			credentials(PasswordCredentials) {
 				username ossrhUsername
 				password ossrhPassword
+			}
+		}
+
+		maven {
+			name = "GitHubPackages"
+			url = "https://maven.pkg.github.com/PlanetTeamSpeakk/MySQLw"
+			credentials {
+				username = gpUsername
+				password = gpToken
 			}
 		}
 	}
