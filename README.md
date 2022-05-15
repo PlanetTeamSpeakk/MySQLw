@@ -96,7 +96,7 @@ Now if you wish to only return results whose email address starts with 'john' an
 ```java
 SelectResults results = db.select("people", new String[] {"first_name", "last_name"}, QueryConditions.create(QueryCondition.greater("id", 3)).and(QueryCondition.like("email", "john%")), QueryOrder.by("first_name"), QueryLimit.limit(2));
 ```
-Besides just passing a String as the column, you can pass any CharSequence, more specifically the QueryFunction.
+Besides just passing a String as the column, you can pass any CharSequence, more specifically the [QueryFunction](#queryfunction).
 
 In conclusion, the select method is any of the following:
 ```java
