@@ -1,21 +1,22 @@
 package com.ptsmods.mysqlw.collection;
 
-import com.google.common.base.Preconditions;
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.SelectResults;
 import com.ptsmods.mysqlw.table.ColumnType;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+
+import static com.ptsmods.mysqlw.Database.checkNotNull;
 
 @SuppressWarnings("unused")
 public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
@@ -79,9 +80,9 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
      * @param <V> The type of the values in this map.
      * @return A new DbMap or a cached one if available.
      */
-    public static <K, V> DbMap<K, V> getMap(@Nonnull Database db, @Nonnull String name,
-                                            @Nonnull BiFunction<K, DbCollection, String> keyToString, @Nonnull BiFunction<V, DbCollection, String> valueToString,
-                                            @Nonnull BiFunction<String, DbCollection, K> keyFromString, @Nonnull BiFunction<String, DbCollection, V> valueFromString) {
+    public static <K, V> DbMap<K, V> getMap(@NotNull Database db, @NotNull String name,
+											@NotNull BiFunction<K, DbCollection, String> keyToString, @NotNull BiFunction<V, DbCollection, String> valueToString,
+											@NotNull BiFunction<String, DbCollection, K> keyFromString, @NotNull BiFunction<String, DbCollection, V> valueFromString) {
         if (cache.containsKey(name))
             try {
                 return (DbMap<K, V>) cache.get(name);
@@ -93,11 +94,11 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
 
     private DbMap(Database db, String name, BiFunction<K, DbCollection, String> keyToString, BiFunction<V, DbCollection, String> valueToString, BiFunction<String, DbCollection, K> keyFromString, BiFunction<String, DbCollection, V> valueFromString) {
         if (cache.containsKey(name)) throw new IllegalArgumentException("A DbMap by this name already exists.");
-        Preconditions.checkNotNull(db, "database");
-        Preconditions.checkNotNull(keyToString, "keyToString");
-        Preconditions.checkNotNull(keyFromString, "keyFromString");
-        Preconditions.checkNotNull(valueToString, "valueToString");
-        Preconditions.checkNotNull(valueFromString, "valueFromString");
+        checkNotNull(db, "database");
+        checkNotNull(keyToString, "keyToString");
+        checkNotNull(keyFromString, "keyFromString");
+        checkNotNull(valueToString, "valueToString");
+        checkNotNull(valueFromString, "valueFromString");
         this.db = db;
         this.table = "map_" + name;
         this.name = name;
@@ -203,13 +204,13 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
     }
 
     @Override
-    public void putAll(@Nonnull Map<? extends K, ? extends V> m) { // Way more efficient to put them all in at once than going at it one by one and calling #put.
+    public void putAll(@NotNull Map<? extends K, ? extends V> m) { // Way more efficient to put them all in at once than going at it one by one and calling #put.
         List<Object[]> columnValues = new ArrayList<>();
         m.forEach((key, value) -> {if (key != null) columnValues.add(new Object[] {keyToString.apply(key, this), value == null ? null : valueToString.apply(value, this)});});
         db.replace(table, new String[] {"m_key", "m_val"}, columnValues); // We don't need duplicate keys on our hands.
     }
 
-    public CompletableFuture<Void> putAllAsync(@Nonnull Map<? extends K, ? extends V> m) {
+    public CompletableFuture<Void> putAllAsync(@NotNull Map<? extends K, ? extends V> m) {
         return runAsync(() -> putAll(m));
     }
 
@@ -222,7 +223,7 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
         return runAsync(this::clear);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public Set<K> keySet() {
         Set<K> keySet = new LinkedHashSet<>();
@@ -231,12 +232,12 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
         return keySet;
     }
 
-    @Nonnull
+    @NotNull
     public CompletableFuture<Set<K>> keySetAsync() {
         return runAsync(this::keySet);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public Collection<V> values() {
         List<V> values = new ArrayList<>();
@@ -245,12 +246,12 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
         return values;
     }
 
-    @Nonnull
+    @NotNull
     public CompletableFuture<Collection<V>> valuesAsync() {
         return runAsync(this::values);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public Set<Entry<K, V>> entrySet() {
         SelectResults data = db.select(table, new String[] {"m_key", "m_val"}, null, null, null);
@@ -260,7 +261,7 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
         return entrySet;
     }
 
-    @Nonnull
+    @NotNull
     public CompletableFuture<Set<Entry<K, V>>> entrySetAsync() {
         return runAsync(this::entrySet);
     }
@@ -270,12 +271,12 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
         return "DbMap[name='" + name + "',values=" + super.toString() + "]";
     }
 
-    @Nonnull
+    @NotNull
     public Database getDb() {
         return db;
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public String getTable() {
         return table;
@@ -285,22 +286,22 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
         return name;
     }
 
-    @Nonnull
+    @NotNull
     public BiFunction<K, DbCollection, String> getKeyToString() {
         return keyToString;
     }
 
-    @Nonnull
+    @NotNull
     public BiFunction<V, DbCollection, String> getValueToString() {
         return valueToString;
     }
 
-    @Nonnull
+    @NotNull
     public BiFunction<String, DbCollection, K> getKeyFromString() {
         return keyFromString;
     }
 
-    @Nonnull
+    @NotNull
     public BiFunction<String, DbCollection, V> getValueFromString() {
         return valueFromString;
     }

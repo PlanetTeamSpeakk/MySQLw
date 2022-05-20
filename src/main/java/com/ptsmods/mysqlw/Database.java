@@ -5,10 +5,8 @@ import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -28,8 +26,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"}) // It's an API, I know they're unused...
 public class Database {
@@ -827,7 +823,7 @@ public class Database {
      * @see #insertUpdateAsync(String, String, Object, Object)
      */
     public int insertUpdate(String table, String column, Object value, Object duplicateValue) {
-        return insertUpdate(table, new String[] {column}, new Object[] {value}, ImmutableMap.of(column, duplicateValue), column);
+        return insertUpdate(table, new String[] {column}, new Object[] {value}, singletonMap(column, duplicateValue), column);
     }
 
     /**
@@ -925,7 +921,7 @@ public class Database {
      * @see #insertIgnoreAsync(String, String[], Object[], String)
      */
     public int insertIgnore(String table, String[] columns, Object[] values, String keyColumn) {
-        return insertUpdate(table, columns, values, ImmutableMap.<String, Object>builder().put(keyColumn, values[Arrays.binarySearch(columns, keyColumn)]).build(), keyColumn);
+        return insertUpdate(table, columns, values, singletonMap(keyColumn, values[Arrays.binarySearch(columns, keyColumn)]), keyColumn);
     }
 
     /**
@@ -951,7 +947,7 @@ public class Database {
      * @see #updateAsync(String, String, Object, QueryCondition)
      */
     public int update(String table, String column, Object value, QueryCondition condition) {
-        return update(table, ImmutableMap.of(column, value), condition);
+        return update(table, singletonMap(column, value), condition);
     }
 
     /**
@@ -1029,7 +1025,7 @@ public class Database {
      * @see #replaceAsync(String, String[], Object[])
      */
     public int replace(String table, String[] columns, Object[] values) {
-        return replace(table, columns, Lists.<Object[]>newArrayList(values));
+        return replace(table, columns, Collections.singletonList(values));
     }
 
     /**
@@ -1385,6 +1381,18 @@ public class Database {
             return null;
         }
     }
+
+	public static <K, V> Map<K, V> singletonMap(K key, V value) {
+		Map<K, V> map = new LinkedHashMap<>();
+		map.put(key, value);
+		return Collections.unmodifiableMap(map);
+	}
+
+	public static <T> T checkNotNull(T reference, Object errorMessage) {
+		if (reference == null)
+			throw new NullPointerException(String.valueOf(errorMessage));
+		return reference;
+	}
 
     public enum RDBMS {
         MySQL("com.mysql.cj.jdbc.Driver", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${VERSION}/mysql-connector-java-${VERSION}.jar", name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name))),

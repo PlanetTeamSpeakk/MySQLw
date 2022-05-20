@@ -1,8 +1,6 @@
 package com.ptsmods.mysqlw.table;
 
-import com.google.common.collect.ImmutableList;
 import com.ptsmods.mysqlw.Database;
-import com.google.common.collect.ImmutableMap;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -96,7 +94,7 @@ public class TablePreset {
      * @return An immutable copy of the map of columns in this
      */
     public Map<String, ColumnStructure<?>> getColumns() {
-        return ImmutableMap.copyOf(columns);
+        return Collections.unmodifiableMap(columns);
     }
 
     public Map<String, String> build(Database.RDBMS type) {
@@ -113,7 +111,7 @@ public class TablePreset {
     }
 
     public List<TableIndex> getIndices() {
-        return ImmutableList.copyOf(indices);
+        return Collections.unmodifiableList(indices);
     }
 
     public TablePreset create(Database db) {

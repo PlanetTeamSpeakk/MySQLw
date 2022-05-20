@@ -1,8 +1,8 @@
 package com.ptsmods.mysqlw.table;
 
 import com.ptsmods.mysqlw.Database;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.function.Function;
 import java.util.function.Supplier;
 

@@ -1,7 +1,5 @@
 package com.ptsmods.mysqlw.test;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.collection.DbList;
 import com.ptsmods.mysqlw.collection.DbMap;
@@ -17,6 +15,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import java.io.File;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,8 +62,8 @@ class SQLiteTest {
         assertEquals(1, list.size());
         assertEquals("Hello", list.get(0));
         assertTrue(list.contains("Hello"));
-        list.addAll(Lists.newArrayList("test", "test2"));
-        assertTrue(list.containsAll(Lists.newArrayList("test", "test2")));
+        list.addAll(Arrays.asList("test", "test2"));
+        assertTrue(list.containsAll(Arrays.asList("test", "test2")));
         list.clear();
         assertTrue(list.isEmpty());
     }
@@ -77,8 +76,8 @@ class SQLiteTest {
         set.add("Hello");
         assertEquals(2, set.size());
         assertTrue(set.contains("hey"));
-        set.addAll(Lists.newArrayList("test", "test2"));
-        assertTrue(set.containsAll(Lists.newArrayList("test", "test2")));
+        set.addAll(Arrays.asList("test", "test2"));
+        assertTrue(set.containsAll(Arrays.asList("test", "test2")));
         set.clear();
         assertTrue(set.isEmpty());
     }
@@ -92,7 +91,7 @@ class SQLiteTest {
     void truncate() throws SQLException {
         getDb().truncate("testtable");
         assertEquals(0, getDb().count("testtable", "*", null));
-        getDb().insert("testtable", new String[] {"keyword", "value"}, Lists.newArrayList(new Object[] {"key1", "val1"}, new Object[] {"key2", "val2"}));
+        getDb().insert("testtable", new String[] {"keyword", "value"}, Arrays.asList(new Object[] {"key1", "val1"}, new Object[] {"key2", "val2"}));
     }
 
     @Test
@@ -113,7 +112,7 @@ class SQLiteTest {
         getDb().insert("testtable", new String[] {"keyword", "value"}, new Object[] {"key3", "val3"});
         assertEquals(1, getDb().select("testtable", "*", QueryCondition.equals("keyword", "key3"), null, null).size());
         assertEquals(0, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5")), null, null).size());
-        getDb().insert("testtable", new String[] {"keyword", "value"}, Lists.newArrayList(new Object[] {"key4", "val4"}, new Object[] {"key5", "val5"}));
+        getDb().insert("testtable", new String[] {"keyword", "value"}, Arrays.asList(new Object[] {"key4", "val4"}, new Object[] {"key5", "val5"}));
         assertEquals(2, getDb().select("testtable", "*", QueryConditions.create(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5")), null, null).size());
         QueryCondition condition = QueryConditions.create(QueryCondition.equals("keyword", "key3")).or(QueryCondition.equals("keyword", "key4")).or(QueryCondition.equals("keyword", "key5"));
         getDb().delete("testtable", condition);
@@ -122,9 +121,9 @@ class SQLiteTest {
     @Test
     void insertDuplicate() throws SQLException {
         assertEquals("val2", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
-        assertEquals(1, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val6").build(), "keyword"));
+        assertEquals(1, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, Database.singletonMap("value", "val6"), "keyword"));
         assertEquals("val6", getDb().select("testtable", "value", QueryCondition.equals("keyword", "key2"), null, null).get(0).get("value"));
-        assertEquals(1, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, ImmutableMap.<String, Object>builder().put("value", "val2").build(), "keyword"));
+        assertEquals(1, getDb().insertUpdate("testtable", new String[] {"keyword", "value"}, new Object[] {"key2", "val2"}, Database.singletonMap("value", "val2"), "keyword"));
     }
 
     @Test

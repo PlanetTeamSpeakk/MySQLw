@@ -1,14 +1,14 @@
 package com.ptsmods.mysqlw.query;
 
 import com.ptsmods.mysqlw.Database;
-import com.google.common.collect.ImmutableList;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.*;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Returned when you use any of the select methods in {@link Database}.
@@ -73,8 +73,8 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         this.condition = condition;
         this.order = order;
         this.limit = limit;
-        this.columns = ImmutableList.copyOf(columns);
-        this.data = data.stream().map(SelectResultRow::new).collect(ImmutableList.toImmutableList());
+        this.columns = Collections.unmodifiableList(columns);
+        this.data = Collections.unmodifiableList(data.stream().map(SelectResultRow::new).collect(Collectors.toList()));
     }
 
     /**
@@ -191,19 +191,19 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         return data.lastIndexOf(o);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public ListIterator<SelectResultRow> listIterator() {
         return data.listIterator();
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public ListIterator<SelectResultRow> listIterator(int index) {
         return data.listIterator(index);
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public List<SelectResultRow> subList(int fromIndex, int toIndex) {
         return data.subList(fromIndex, toIndex);
@@ -221,21 +221,21 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
                 ']';
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public Iterator<SelectResultRow> iterator() {
         return data.iterator();
     }
 
-    @Nonnull
+    @NotNull
     @Override
     public Object[] toArray() {
         return data.toArray();
     }
 
-    @Nonnull
+    @NotNull
     @Override
-    public <T> T[] toArray(@Nonnull T[] a) {
+    public <T> T[] toArray(@NotNull T[] a) {
         return data.toArray(a);
     }
 
@@ -252,30 +252,30 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
     }
 
     @Override
-    public boolean containsAll(@Nonnull Collection<?> c) {
+    public boolean containsAll(@NotNull Collection<?> c) {
         return data.containsAll(c);
     }
 
     @Override
-    public boolean addAll(@Nonnull Collection<? extends SelectResultRow> c) {
+    public boolean addAll(@NotNull Collection<? extends SelectResultRow> c) {
         throwException();
         return false;
     }
 
     @Override
-    public boolean addAll(int index, @Nonnull Collection<? extends SelectResultRow> c) {
+    public boolean addAll(int index, @NotNull Collection<? extends SelectResultRow> c) {
         throwException();
         return false;
     }
 
     @Override
-    public boolean removeAll(@Nonnull Collection<?> c) {
+    public boolean removeAll(@NotNull Collection<?> c) {
         throwException();
         return false;
     }
 
     @Override
-    public boolean retainAll(@Nonnull Collection<?> c) {
+    public boolean retainAll(@NotNull Collection<?> c) {
         throwException();
         return false;
     }
@@ -422,7 +422,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         }
 
         @Override
-        public void putAll(@Nonnull Map<? extends String, ?> m) {
+        public void putAll(@NotNull Map<? extends String, ?> m) {
             throwException();
         }
 
@@ -431,19 +431,19 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
             throwException();
         }
 
-        @Nonnull
+        @NotNull
         @Override
         public Set<String> keySet() {
             return Collections.unmodifiableSet(new LinkedHashSet<>(columns));
         }
 
-        @Nonnull
+        @NotNull
         @Override
         public Collection<Object> values() {
             return data.values();
         }
 
-        @Nonnull
+        @NotNull
         @Override
         public Set<Entry<String, Object>> entrySet() {
             return data.entrySet();
