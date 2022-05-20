@@ -8,8 +8,7 @@ import com.ptsmods.mysqlw.table.TablePreset;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -1347,7 +1346,11 @@ public class Database {
      */
     @SuppressWarnings("unchecked")
     public static <T> T getFromString(String s, Class<T> clazz) {
-        return reverseClassConverters.containsKey(clazz) ? (T) reverseClassConverters.get(clazz).apply(s) : reverseClassConverters.entrySet().stream().filter(entry -> entry.getKey().isAssignableFrom(clazz)).findFirst().map(entry -> (T) entry.getValue().apply(s)).orElseThrow(() -> new IllegalArgumentException("Class " + clazz.getName() + " has no registered type converters."));
+        return reverseClassConverters.containsKey(clazz) ? (T) reverseClassConverters.get(clazz).apply(s) : reverseClassConverters.entrySet().stream()
+                .filter(entry -> entry.getKey().isAssignableFrom(clazz))
+                .findFirst()
+                .map(entry -> (T) entry.getValue().apply(s))
+                .orElseThrow(() -> new IllegalArgumentException("Class " + clazz.getName() + " has no registered type converters."));
     }
 
     /**
@@ -1361,7 +1364,6 @@ public class Database {
         classConverters.put(clazz, o -> converterTo.apply((T) o));
         reverseClassConverters.put(clazz, converterFrom::apply);
     }
-
     /**
      * Reads a String starting with a single quote until the next quote.
      * @param s The String to read.
