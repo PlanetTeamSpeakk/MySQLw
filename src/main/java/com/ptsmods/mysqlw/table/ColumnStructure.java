@@ -18,7 +18,7 @@ public class ColumnStructure<S> {
     private String typeString = null;
     private boolean unique = false;
     private boolean primary = false;
-    private ColumnDefault defValue = ColumnDefault.NULL;
+    private ColumnDefault defValue = null;
     private ColumnAttributes attributes = null;
     private boolean nullAllowed = true;
     private boolean autoIncrement = false;
@@ -106,8 +106,7 @@ public class ColumnStructure<S> {
      */
     public ColumnStructure<S> setDefault(@Nullable ColumnDefault defValue) {
         checkRO();
-		defValue = defValue == null ? ColumnDefault.NULL : defValue;
-		if (defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed)
+		if (defValue != null && defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed)
 			throw new IllegalArgumentException("Default value may not be NULL when null is not allowed.");
         this.defValue = defValue;
         return this;
@@ -204,14 +203,13 @@ public class ColumnStructure<S> {
 
     public String toString(Database.RDBMS type) {
         if (typeString == null) throw new IllegalStateException("Structure has not yet been configured.");
-		if (defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed) throw new IllegalStateException("Default value may not be NULL when null is not allowed.");
 
         StringBuilder builder = new StringBuilder(typeString);
         if (attributes != null) builder.append(' ').append(attributes);
         if (primary) builder.append(" PRIMARY KEY");
         if (autoIncrement) builder.append(type == Database.RDBMS.SQLite ? " AUTOINCREMENT" : " AUTO_INCREMENT");
         if (unique) builder.append(" UNIQUE");
-        builder.append(" DEFAULT ").append(defValue.getDefString());
+        if (defValue != null) builder.append(" DEFAULT ").append(defValue.getDefString());
         builder.append(nullAllowed || defValue == ColumnDefault.NULL ? " NULL" : " NOT NULL");
         if (comment != null) builder.append(" COMMENT ").append(Database.enquote(comment));
         if (extra != null) builder.append(" ").append(extra);
