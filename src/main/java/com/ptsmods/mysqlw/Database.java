@@ -89,7 +89,7 @@ public class Database {
             }
         } else
             try (URLClassLoader loader = new URLClassLoader(new URL[] {file.toURI().toURL()}, Database.class.getClassLoader())) {
-				// This is likely not to work in many cases, but it's simply not easy to do on Java 9+.
+                // This is likely not to work in many cases, but it's simply not easy to do on Java 9+.
                 loader.loadClass(initialLoadClass);
             } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
@@ -408,14 +408,14 @@ public class Database {
     }
 
 
-	/**
-	 * Creates a new {@link SelectBuilder} to use for selecting data.
-	 * @param table The table to select from.
-	 * @return A new {@link SelectBuilder}.
-	 */
-	public SelectBuilder selectBuilder(String table) {
-		return SelectBuilder.create(this, table);
-	}
+    /**
+     * Creates a new {@link SelectBuilder} to use for selecting data.
+     * @param table The table to select from.
+     * @return A new {@link SelectBuilder}.
+     */
+    public SelectBuilder selectBuilder(String table) {
+        return SelectBuilder.create(this, table);
+    }
 
     /**
      * Runs a select query and returns the raw output.
@@ -725,16 +725,16 @@ public class Database {
         return runAsync(() -> select(table, columns, condition, order, limit));
     }
 
-	/**
-	 * Creates a new {@link InsertBuilder} to build insert queries with.
-	 * @param table The table to insert into.
-	 * @param columns The columns to insert values into.
-	 * @return A new {@link InsertBuilder}.
-	 */
-	public InsertBuilder insertBuilder(String table, String... columns) {
-		return InsertBuilder.create(this, table, columns);
-	}
-	
+    /**
+     * Creates a new {@link InsertBuilder} to build insert queries with.
+     * @param table The table to insert into.
+     * @param columns The columns to insert values into.
+     * @return A new {@link InsertBuilder}.
+     */
+    public InsertBuilder insertBuilder(String table, String... columns) {
+        return InsertBuilder.create(this, table, columns);
+    }
+    
     /**
      * Inserts new data into the table.
      * @param table The table to insert into.
@@ -1382,17 +1382,17 @@ public class Database {
         }
     }
 
-	public static <K, V> Map<K, V> singletonMap(K key, V value) {
-		Map<K, V> map = new LinkedHashMap<>();
-		map.put(key, value);
-		return Collections.unmodifiableMap(map);
-	}
+    public static <K, V> Map<K, V> singletonMap(K key, V value) {
+        Map<K, V> map = new LinkedHashMap<>();
+        map.put(key, value);
+        return Collections.unmodifiableMap(map);
+    }
 
-	public static <T> T checkNotNull(T reference, Object errorMessage) {
-		if (reference == null)
-			throw new NullPointerException(String.valueOf(errorMessage));
-		return reference;
-	}
+    public static <T> T checkNotNull(T reference, Object errorMessage) {
+        if (reference == null)
+            throw new NullPointerException(String.valueOf(errorMessage));
+        return reference;
+    }
 
     public enum RDBMS {
         MySQL("com.mysql.cj.jdbc.Driver", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${VERSION}/mysql-connector-java-${VERSION}.jar", name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name))),

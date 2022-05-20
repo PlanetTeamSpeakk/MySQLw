@@ -81,8 +81,8 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
      * @return A new DbMap or a cached one if available.
      */
     public static <K, V> DbMap<K, V> getMap(@NotNull Database db, @NotNull String name,
-											@NotNull BiFunction<K, DbCollection, String> keyToString, @NotNull BiFunction<V, DbCollection, String> valueToString,
-											@NotNull BiFunction<String, DbCollection, K> keyFromString, @NotNull BiFunction<String, DbCollection, V> valueFromString) {
+                                            @NotNull BiFunction<K, DbCollection, String> keyToString, @NotNull BiFunction<V, DbCollection, String> valueToString,
+                                            @NotNull BiFunction<String, DbCollection, K> keyFromString, @NotNull BiFunction<String, DbCollection, V> valueFromString) {
         if (cache.containsKey(name))
             try {
                 return (DbMap<K, V>) cache.get(name);

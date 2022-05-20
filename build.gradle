@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'nebula.optional-base' version '3.0.3'
-	id 'com.adarshr.test-logger' version '3.2.0'
+    id 'com.adarshr.test-logger' version '3.2.0'
 }
 
 group 'com.ptsmods'
@@ -15,8 +15,8 @@ repositories {
 }
 
 dependencies {
-	implementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.22', optional
-	implementation group: 'org.xerial', name: 'sqlite-jdbc', version: '3.34.0', optional
+    implementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.22', optional
+    implementation group: 'org.xerial', name: 'sqlite-jdbc', version: '3.34.0', optional
     implementation 'org.jetbrains:annotations:20.1.0'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
@@ -28,12 +28,12 @@ tasks.withType(JavaCompile) {
 }
 
 java {
-	withSourcesJar()
-	withJavadocJar()
+    withSourcesJar()
+    withJavadocJar()
 }
 
 javadoc {
-	options.addBooleanOption("html5", true)
+    options.addBooleanOption("html5", true)
 }
 
 test {
@@ -41,30 +41,30 @@ test {
 }
 
 testlogger {
-	theme 'standard'
-	showExceptions true
-	showStackTraces true
-	showFullStackTraces false
-	showCauses true
-	slowThreshold 2000
-	showSummary true
-	showSimpleNames false
-	showPassed true
-	showSkipped true
-	showFailed true
-	showStandardStreams false
-	showPassedStandardStreams true
-	showSkippedStandardStreams true
-	showFailedStandardStreams true
+    theme 'standard'
+    showExceptions true
+    showStackTraces true
+    showFullStackTraces false
+    showCauses true
+    slowThreshold 2000
+    showSummary true
+    showSimpleNames false
+    showPassed true
+    showSkipped true
+    showFailed true
+    showStandardStreams false
+    showPassedStandardStreams true
+    showSkippedStandardStreams true
+    showFailedStandardStreams true
 }
 
 publishing {
-	publications {
-		mavenJava(MavenPublication) {
-			artifactId = "mysqlw"
-			from components.java
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = "mysqlw"
+            from components.java
 
-			pom {
+            pom {
                 name = 'MySQLw'
                 description = 'A wrapper for MySQL connections'
                 url = 'https://github.com/PlanetTeamSpeakk/MySQLw'
@@ -89,35 +89,35 @@ publishing {
                         email = 'PlanetTeamSpeakk@users.noreply.github.com'
                     }
                 }
-			}
-		}
-	}
+            }
+        }
+    }
 
-	// Credentials are gotten from global gradle.properties file (user home/.gradle/gradle.properties)
-	repositories {
-		maven {
-			// https://oss.sonatype.org
-			def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-			def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
-			name = "MavenCentral"
-			url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-			credentials(PasswordCredentials) {
-				username ossrhUsername
-				password ossrhPassword
-			}
-		}
+    // Credentials are gotten from global gradle.properties file (user home/.gradle/gradle.properties)
+    repositories {
+        maven {
+            // https://oss.sonatype.org
+            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+            name = "MavenCentral"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials(PasswordCredentials) {
+                username ossrhUsername
+                password ossrhPassword
+            }
+        }
 
-		maven {
-			name = "GitHubPackages"
-			url = ghUrlRoot + "/MySQLw"
-			credentials(PasswordCredentials) {
-				username = ghUsername
-				password = ghToken
-			}
-		}
-	}
+        maven {
+            name = "GitHubPackages"
+            url = ghUrlRoot + "/MySQLw"
+            credentials(PasswordCredentials) {
+                username = ghUsername
+                password = ghToken
+            }
+        }
+    }
 }
 
 signing {
-	sign publishing.publications.mavenJava
+    sign publishing.publications.mavenJava
 }

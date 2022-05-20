@@ -19,16 +19,16 @@ public class Pair<L, R> {
         return right;
     }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (!(o instanceof Pair)) return false;
-		Pair<?, ?> pair = (Pair<?, ?>) o;
-		return Objects.equals(getLeft(), pair.getLeft()) && Objects.equals(getRight(), pair.getRight());
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Pair)) return false;
+        Pair<?, ?> pair = (Pair<?, ?>) o;
+        return Objects.equals(getLeft(), pair.getLeft()) && Objects.equals(getRight(), pair.getRight());
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(getLeft(), getRight());
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(getLeft(), getRight());
+    }
 }

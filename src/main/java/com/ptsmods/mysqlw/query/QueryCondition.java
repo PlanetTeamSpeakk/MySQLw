@@ -7,8 +7,8 @@ import com.ptsmods.mysqlw.Database;
  */
 public abstract class QueryCondition {
 
-	// All methods return an instance of QueryConditions
-	// rather than QueryCondition to ease chaining.
+    // All methods return an instance of QueryConditions
+    // rather than QueryCondition to ease chaining.
     public static QueryConditions func(QueryFunction function) {
         return QueryConditions.create(new QueryCondition() {
             @Override

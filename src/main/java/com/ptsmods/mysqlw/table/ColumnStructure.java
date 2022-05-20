@@ -26,7 +26,7 @@ public class ColumnStructure<S> {
     private String extra = null;
     private boolean readOnly = false;
 
-	@SuppressWarnings("unchecked") // Any ColumnType that has a Supplier as supplier is of generic type String.
+    @SuppressWarnings("unchecked") // Any ColumnType that has a Supplier as supplier is of generic type String.
     ColumnStructure(ColumnType<S> type) {
         this.type = type;
         if (getSupplier() instanceof Supplier) typeString = ((Supplier<String>) getSupplier()).get();
@@ -48,17 +48,17 @@ public class ColumnStructure<S> {
         return this;
     }
 
-	/**
-	 * Run and return the value of the supplier of the selected {@link ColumnType}.
-	 * <p style="font-weight: bold; color: red;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
-	 * @param configurator The function that gets the supplier and returns its value.
-	 * @return This structure
-	 * @deprecated Has been renamed. Use {@link #configure(Function)} instead.
-	 */
-	@Deprecated
-	public ColumnStructure<S> satiateSupplier(Function<S, String> configurator) {
-		return configure(configurator);
-	}
+    /**
+     * Run and return the value of the supplier of the selected {@link ColumnType}.
+     * <p style="font-weight: bold; color: red;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
+     * @param configurator The function that gets the supplier and returns its value.
+     * @return This structure
+     * @deprecated Has been renamed. Use {@link #configure(Function)} instead.
+     */
+    @Deprecated
+    public ColumnStructure<S> satiateSupplier(Function<S, String> configurator) {
+        return configure(configurator);
+    }
 
     /**
      * Run and return the value of the supplier of the selected {@link ColumnType}.
@@ -106,8 +106,8 @@ public class ColumnStructure<S> {
      */
     public ColumnStructure<S> setDefault(@Nullable ColumnDefault defValue) {
         checkRO();
-		if (defValue != null && defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed)
-			throw new IllegalArgumentException("Default value may not be NULL when null is not allowed.");
+        if (defValue != null && defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed)
+            throw new IllegalArgumentException("Default value may not be NULL when null is not allowed.");
         this.defValue = defValue;
         return this;
     }
@@ -154,8 +154,8 @@ public class ColumnStructure<S> {
 
     /**
      * @param extra Anything else you could possibly want to add that this class does not cover.
-	 *              It would also be appreciated if you could make a pull request or issue to
-	 *              cover this on <a href="https://github.com/PlanetTeamSpeakk/MySQLw">the GitHub page</a>.
+     *              It would also be appreciated if you could make a pull request or issue to
+     *              cover this on <a href="https://github.com/PlanetTeamSpeakk/MySQLw">the GitHub page</a>.
      * @return This structure
      */
     public ColumnStructure<S> setExtra(@Nullable String extra) {

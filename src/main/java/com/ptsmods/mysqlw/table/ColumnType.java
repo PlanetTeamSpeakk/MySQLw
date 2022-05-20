@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 
 public class ColumnType<S> {
 
-	private static final Map<String, ColumnType<?>> typesBackend = new LinkedHashMap<>();
+    private static final Map<String, ColumnType<?>> typesBackend = new LinkedHashMap<>();
     // NUMERIC TYPES
     /**
      * Tiny integer type (byte)<br>
@@ -83,7 +83,7 @@ public class ColumnType<S> {
      * Datetime type<br>
      * A combination of {@link #DATE} and {@link #TIME}.
      * @deprecated Java by default has classes for {@link java.sql.Date Date}, {@link java.sql.Timestamp Timestamp} and {@link java.sql.Time Time}, but not for {@code datetime}.
-	 * 			So it is recommended to use any of those, especially {@link #TIMESTAMP}, instead.
+     *             So it is recommended to use any of those, especially {@link #TIMESTAMP}, instead.
      */
     @Deprecated
     public static final ColumnType<Supplier<String>> DATETIME = new ColumnType<>("DATETIME", () -> "DATETIME");
@@ -253,21 +253,21 @@ public class ColumnType<S> {
 
     public static final Map<String, ColumnType<?>> types = Collections.unmodifiableMap(typesBackend);
 
-	private final String name;
+    private final String name;
     private final S supplier;
 
     private ColumnType(String name, S supplier) {
-		this.name = name;
+        this.name = name;
         this.supplier = supplier;
 
-		typesBackend.put(name, this);
+        typesBackend.put(name, this);
     }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public S getSupplier() {
+    public S getSupplier() {
         return supplier;
     }
 
