@@ -18,7 +18,12 @@ import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
 public class DbSet<E> extends AbstractSet<E> implements DbCollection {
-    private static final TablePreset preset = TablePreset.create("set_").putColumn("value", ColumnType.VARCHAR.createStructure().satiateSupplier(sup -> sup.apply(255)).setPrimary(true).setNullAllowed(false).setUnique(true));
+    private static final TablePreset preset = TablePreset.create("set_")
+			.putColumn("value", ColumnType.VARCHAR.createStructure()
+					.configure(sup -> sup.apply(255))
+					.setPrimary(true)
+					.setNullAllowed(false)
+					.setUnique(true));
     private static final Map<String, DbSet<?>> cache = new HashMap<>();
     private final Database db;
     private final String table;

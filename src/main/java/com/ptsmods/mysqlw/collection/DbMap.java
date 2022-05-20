@@ -22,7 +22,7 @@ public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
 
     private static final TablePreset preset = TablePreset.create("map_")
             .putColumn("m_key", ColumnType.VARCHAR.createStructure()
-                    .satiateSupplier(sup -> sup.apply(255))
+                    .configure(sup -> sup.apply(255))
                     .setPrimary(true)
                     .setNullAllowed(false))
             .putColumn("m_val", ColumnType.TEXT.createStructure())

@@ -15,7 +15,6 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
-import java.awt.*;
 import java.io.File;
 import java.sql.SQLException;
 import java.util.UUID;
@@ -167,7 +166,7 @@ class SQLiteTest {
     @Test
     void typeConverter() throws SQLException {
         Database.registerTypeConverter(UUID.class, id -> id == null ? null : Database.enquote(id.toString()), UUID::fromString);
-        TablePreset.create("typetest").putColumn("id", ColumnType.CHAR.createStructure().satiateSupplier(sup -> sup.apply(36))).create(getDb());
+        TablePreset.create("typetest").putColumn("id", ColumnType.CHAR.createStructure().configure(sup -> sup.apply(36))).create(getDb());
         getDb().truncate("typetest");
         UUID id = UUID.randomUUID();
         assertEquals(1, getDb().insert("typetest", "id", id));

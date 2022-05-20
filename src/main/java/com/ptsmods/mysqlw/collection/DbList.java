@@ -24,7 +24,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     private static final TablePreset preset = TablePreset.create("list_")
             .putColumn("id", ColumnType.INT.createStructure()
-                    .satiateSupplier(sup -> sup.apply(null))
+                    .configure(sup -> sup.apply(null))
                     .setAutoIncrement(true)
                     .setNullAllowed(false)
                     .setPrimary(true))
@@ -289,7 +289,7 @@ public class DbList<E> extends AbstractList<E> implements DbCollection {
     public E set(int index, E element) {
         checkIndex(index, size());
         E val = get(index);
-        db.insertUpdate(table, new String[] {"id", "val"}, new Object[] {index+1, elementToString.apply(element, this)}, ImmutableMap.<String, Object>builder().put("val", elementToString.apply(element, this)).build(), "id");
+        db.insertUpdate(table, new String[] {"id", "val"}, new Object[] {index+1, elementToString.apply(element, this)}, ImmutableMap.of("val", elementToString.apply(element, this)), "id");
         return val;
     }
 
