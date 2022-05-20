@@ -93,6 +93,7 @@ publishing {
 		}
 	}
 
+	// Credentials are gotten from global gradle.properties file (user home/.gradle/gradle.properties)
 	repositories {
 		maven {
 			// https://oss.sonatype.org
@@ -108,10 +109,10 @@ publishing {
 
 		maven {
 			name = "GitHubPackages"
-			url = "https://maven.pkg.github.com/PlanetTeamSpeakk/MySQLw"
-			credentials {
-				username = gpUsername
-				password = gpToken
+			url = ghUrlRoot + "/MySQLw"
+			credentials(PasswordCredentials) {
+				username = ghUsername
+				password = ghToken
 			}
 		}
 	}
