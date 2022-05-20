@@ -35,13 +35,13 @@ public class Database {
     private static final char[] HEX_DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
     /**
-     * Downloads the latest version of the connector for the given type and adds it to the classpath.<br>
+     * Downloads the latest version of the connector for the given type and attempts to add it to the classpath.<br>
      * It is not recommended you rely on this, but if, for example, you offer your users a choice whether
      * to use MySQL or SQLite and you do not want to make your jar file huge, there is always this option.
      * @param type The type of the connector to download.
      * @param version The version of the connector to download. If null, automatically downloads the latest one. In case of {@link RDBMS#MySQL MySQL}, this version should correspond with the version of the server you're trying to connect to.
      * @param file The file to download to.
-     * @param useCache Whether or not to use a cached file if the given file already exists. If the given file does not appear to be a connector of the given type, a new version will be downloaded nonetheless.
+     * @param useCache Whether to use a cached file if the given file already exists. If the given file does not appear to be a connector of the given type, a new version will be downloaded nonetheless.
      * @throws IllegalArgumentException If the given type is {@link RDBMS#UNKNOWN}.
      * @throws IOException If anything went wrong while downloading the file.
      */
@@ -49,30 +49,28 @@ public class Database {
         checkNotNull(type, "type");
         checkNotNull(file, "file");
         if (type == RDBMS.UNKNOWN) throw new IllegalArgumentException("The type cannot be UNKNOWN.");
-        else {
-            if (version == null) {
-                if (useCache && checkAndAdd(file, type)) return;
-                String versionCheck = type.getMetadataUrl();
-                URL versionCheckUrl = new URL(versionCheck);
-                URLConnection connection = versionCheckUrl.openConnection();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                String line;
-                while ((line = reader.readLine()) != null && !(line = line.trim()).isEmpty())
-                    if (line.startsWith("<release>") && line.endsWith("</release>")) {
-                        version = line.substring("<release>".length(), line.length() - "</release>".length());
-                        break;
-                    }
-                reader.close();
-            }
-            try (ReadableByteChannel rbc = Channels.newChannel(new URL(Objects.requireNonNull(type.getDownloadUrl(version))).openStream()); FileOutputStream fos = new FileOutputStream(file)) {
-                fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
-            }
-            addToClassPath(file, type.getInitialLoadClass());
+        if (version == null) {
+            if (useCache && checkAndAdd(file, type)) return;
+            String versionCheck = type.getMetadataUrl();
+            URL versionCheckUrl = new URL(versionCheck);
+            URLConnection connection = versionCheckUrl.openConnection();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null && !(line = line.trim()).isEmpty())
+                if (line.startsWith("<release>") && line.endsWith("</release>")) {
+                    version = line.substring("<release>".length(), line.length() - "</release>".length());
+                    break;
+                }
+            reader.close();
         }
+        try (ReadableByteChannel rbc = Channels.newChannel(new URL(Objects.requireNonNull(type.getDownloadUrl(version))).openStream()); FileOutputStream fos = new FileOutputStream(file)) {
+            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+        }
+        addToClassPath(file, type.getInitialLoadClass());
     }
 
     private static void addToClassPath(File file, String initialLoadClass) {
-        if (System.getProperty("java.version").startsWith("1.8")) { // In Java 1.8 the system classloader is a URLClassLoader, starting from Java 9 this is an AppClassLoader.
+        if (System.getProperty("java.version").startsWith("1.8") && ClassLoader.getSystemClassLoader() instanceof URLClassLoader) { // In Java 1.8 the system classloader is a URLClassLoader, starting from Java 9 this is an AppClassLoader.
             URLClassLoader classLoader = (URLClassLoader) ClassLoader.getSystemClassLoader();
             Method method;
             try {
@@ -1397,13 +1395,15 @@ public class Database {
     }
 
     public enum RDBMS {
-        MySQL("com.mysql.cj.jdbc.Driver", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${VERSION}/mysql-connector-java-${VERSION}.jar", name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name))),
-        SQLite("org.sqlite.JDBC", "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml", "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/${VERSION}/sqlite-jdbc-${VERSION}.jar", name -> Executors.newFixedThreadPool(1, r -> new Thread(r, "Database Thread - " + name))), // Preventing database lock, only one thread can use an SQLite database at a time.
+        MySQL("com.mysql.cj.jdbc.Driver", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml",
+                "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${VERSION}/mysql-connector-java-${VERSION}.jar",
+                name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name))),
+        SQLite("org.sqlite.JDBC", "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml",
+                "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/${VERSION}/sqlite-jdbc-${VERSION}.jar",
+                name -> Executors.newFixedThreadPool(1, r -> new Thread(r, "Database Thread - " + name))), // Preventing database lock, only one thread can use an SQLite database at a time.
         UNKNOWN(null, null, null, name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name)));
 
-        private final String    initialLoadClass,
-                                metadataUrl,
-                                downloadUrl;
+        private final String initialLoadClass, metadataUrl, downloadUrl;
         private final Function<String, Executor> defaultExecutor;
 
         RDBMS(String initialLoadClass, String metadataUrl, String downloadUrl, Function<String, Executor> defaultExecutor) {
