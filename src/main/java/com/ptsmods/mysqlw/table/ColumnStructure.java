@@ -18,7 +18,7 @@ public class ColumnStructure<S> {
     private String typeString = null;
     private boolean unique = false;
     private boolean primary = false;
-    private ColumnDefault defValue = null;
+    private ColumnDefault defValue = ColumnDefault.NULL;
     private ColumnAttributes attributes = null;
     private boolean nullAllowed = true;
     private boolean autoIncrement = false;
@@ -26,6 +26,7 @@ public class ColumnStructure<S> {
     private String extra = null;
     private boolean readOnly = false;
 
+	@SuppressWarnings("unchecked") // Any ColumnType that has a Supplier as supplier is of generic type String.
     ColumnStructure(ColumnType<S> type) {
         this.type = type;
         if (getSupplier() instanceof Supplier) typeString = ((Supplier<String>) getSupplier()).get();
@@ -36,7 +37,7 @@ public class ColumnStructure<S> {
     }
 
     /**
-     * Basically what satiating the supplier does, except you put in raw data.<br>
+     * Basically what configuring does, except you put in raw data.<br>
      * Don't forget to include the type in here too.<br>
      * Example: VARCHAR(255)
      * @param typeString The new typeString.
@@ -47,21 +48,33 @@ public class ColumnStructure<S> {
         return this;
     }
 
+	/**
+	 * Run and return the value of the supplier of the selected {@link ColumnType}.
+	 * <p style="font-weight: bold; color: red;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
+	 * @param configurator The function that gets the supplier and returns its value.
+	 * @return This structure
+	 * @deprecated Has been renamed. Use {@link #configure(Function)} instead.
+	 */
+	@Deprecated
+	public ColumnStructure<S> satiateSupplier(Function<S, String> configurator) {
+		return configure(configurator);
+	}
+
     /**
      * Run and return the value of the supplier of the selected {@link ColumnType}.
-     * <p style="font-weight: bold; color: red; font-size: 18px;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
-     * @param run The function that gets the supplier and returns its value.
+     * <p style="font-weight: bold; color: red;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
+     * @param configurator The function that gets the supplier and returns its value.
      * @return This structure
      */
-    public ColumnStructure<S> satiateSupplier(Function<S, String> run) {
+    public ColumnStructure<S> configure(Function<S, String> configurator) {
         checkRO();
-        typeString = run.apply(getSupplier());
+        typeString = configurator.apply(getSupplier());
         return this;
     }
 
     /**
-     * @return The supplier that has to be satiated.
-     * @see #satiateSupplier(Function)
+     * @return The supplier that's used to configure this structure.
+     * @see #configure(Function)
      */
     public S getSupplier() {
         return type.getSupplier();
@@ -88,11 +101,14 @@ public class ColumnStructure<S> {
     }
 
     /**
-     * @param defValue The default value of this column, either {@link ColumnDefault#NULL NULL} or {@link ColumnDefault#CURRENT_TIMESTAMP CURRENT_TIMESTAMP}.
+     * @param defValue The default value of this column, either {@link ColumnDefault#NULL NULL}, {@link ColumnDefault#CURRENT_TIMESTAMP CURRENT_TIMESTAMP} or a custom default value.
      * @return This structure
      */
     public ColumnStructure<S> setDefault(@Nullable ColumnDefault defValue) {
         checkRO();
+		defValue = defValue == null ? ColumnDefault.NULL : defValue;
+		if (defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed)
+			throw new IllegalArgumentException("Default value may not be NULL when null is not allowed.");
         this.defValue = defValue;
         return this;
     }
@@ -138,7 +154,9 @@ public class ColumnStructure<S> {
     }
 
     /**
-     * @param extra Anything else you could possibly want to add that this class does not cover. It would also be appreciated if you could make a pull request or issue to cover this on <a href="https://github.com/PlanetTeamSpeakk/MySQLw">the GitHub page</a>.
+     * @param extra Anything else you could possibly want to add that this class does not cover.
+	 *              It would also be appreciated if you could make a pull request or issue to
+	 *              cover this on <a href="https://github.com/PlanetTeamSpeakk/MySQLw">the GitHub page</a>.
      * @return This structure
      */
     public ColumnStructure<S> setExtra(@Nullable String extra) {
@@ -158,7 +176,7 @@ public class ColumnStructure<S> {
     }
 
     private void checkRO() {
-        if (readOnly) throw new IllegalArgumentException("This ColumnStructure is immutable and can thus not be edited anymore");
+        if (readOnly) throw new IllegalArgumentException("This ColumnStructure is immutable and can thus not be edited");
     }
 
     /**
@@ -185,13 +203,15 @@ public class ColumnStructure<S> {
     }
 
     public String toString(Database.RDBMS type) {
-        if (typeString == null) throw new IllegalArgumentException("Supplier has not yet been satiated.");
+        if (typeString == null) throw new IllegalStateException("Structure has not yet been configured.");
+		if (defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed) throw new IllegalStateException("Default value may not be NULL when null is not allowed.");
+
         StringBuilder builder = new StringBuilder(typeString);
-        if (attributes != null) builder.append(' ').append(attributes.toString());
+        if (attributes != null) builder.append(' ').append(attributes);
         if (primary) builder.append(" PRIMARY KEY");
         if (autoIncrement) builder.append(type == Database.RDBMS.SQLite ? " AUTOINCREMENT" : " AUTO_INCREMENT");
         if (unique) builder.append(" UNIQUE");
-        if (defValue != null) builder.append(" DEFAULT ").append(defValue.getDefString());
+        builder.append(" DEFAULT ").append(defValue.getDefString());
         builder.append(nullAllowed || defValue == ColumnDefault.NULL ? " NULL" : " NOT NULL");
         if (comment != null) builder.append(" COMMENT ").append(Database.enquote(comment));
         if (extra != null) builder.append(" ").append(extra);
