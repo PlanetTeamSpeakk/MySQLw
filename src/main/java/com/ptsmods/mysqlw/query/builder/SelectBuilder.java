@@ -6,6 +6,7 @@ import com.ptsmods.mysqlw.query.*;
 
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -204,5 +205,54 @@ public class SelectBuilder {
      */
     public CompletableFuture<SelectResults> executeAsync() {
         return db.runAsync(this::execute);
+    }
+
+    /**
+     * @return The database this builder will select from
+     */
+    public Database getDb() {
+        return db;
+    }
+
+    /**
+     * @return The table this builder will select from
+     */
+    public String getTable() {
+        return table;
+    }
+
+    /**
+     * @return The columns this builder will select, mainly for internal purposes.
+     */
+    public List<Pair<CharSequence, String>> getColumns() {
+        return Collections.unmodifiableList(columns);
+    }
+
+    /**
+     * @return The target this builder will select into
+     */
+    public String getTarget() {
+        return target;
+    }
+
+    /**
+     * @return The condition rows will have to comply with to be selected
+     */
+    public QueryCondition getCondition() {
+        return condition;
+    }
+
+    /**
+     * @return The maximum amount of rows this builder will return upon selecting
+     */
+    public QueryLimit getLimit() {
+        return limit;
+    }
+
+    /**
+     * @return The order in which the rows will be sorted upon selecting
+     */
+    public QueryOrder getOrder() {
+        return order;
     }
 }
