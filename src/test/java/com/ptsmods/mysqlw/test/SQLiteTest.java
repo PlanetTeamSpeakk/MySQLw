@@ -145,7 +145,7 @@ class SQLiteTest {
     @Test
     void createTable() throws SQLException {
         assertFalse(getDb().tableExists("temptable"));
-        TablePreset.create("temptable").putColumn("var", ColumnType.TEXT.createStructure()).create(getDb());
+        TablePreset.create("temptable").putColumn("var", ColumnType.TEXT.struct()).create(getDb());
         assertTrue(getDb().tableExists("temptable"));
         getDb().drop("temptable");
         assertFalse(getDb().tableExists("temptable"));
@@ -165,7 +165,7 @@ class SQLiteTest {
     @Test
     void typeConverter() throws SQLException {
         Database.registerTypeConverter(UUID.class, id -> id == null ? null : Database.enquote(id.toString()), UUID::fromString);
-        TablePreset.create("typetest").putColumn("id", ColumnType.CHAR.createStructure().configure(sup -> sup.apply(36))).create(getDb());
+        TablePreset.create("typetest").putColumn("id", ColumnType.CHAR.struct().configure(sup -> sup.apply(36))).create(getDb());
         getDb().truncate("typetest");
         UUID id = UUID.randomUUID();
         assertEquals(1, getDb().insert("typetest", "id", id));
@@ -175,7 +175,7 @@ class SQLiteTest {
 
     @Test
     void createIndex() throws SQLException {
-        TablePreset.create("indextest").putColumn("col", ColumnType.TEXT.createStructure()).create(getDb());
+        TablePreset.create("indextest").putColumn("col", ColumnType.TEXT.struct()).create(getDb());
         assertDoesNotThrow(() -> getDb().createIndex("indextest", TableIndex.index("fulltexttest", "col", TableIndex.Type.INDEX)));
         getDb().drop("indextest");
     }

@@ -23,12 +23,12 @@ import static com.ptsmods.mysqlw.Database.checkNotNull;
 public class DbList<E> extends AbstractList<E> implements DbCollection {
 
     private static final TablePreset preset = TablePreset.create("list_")
-            .putColumn("id", ColumnType.INT.createStructure()
+            .putColumn("id", ColumnType.INT.struct()
                     .configure(sup -> sup.apply(null))
                     .setAutoIncrement(true)
                     .setNullAllowed(false)
                     .setPrimary(true))
-            .putColumn("val", ColumnType.TEXT.createStructure());
+            .putColumn("val", ColumnType.TEXT.struct());
     private static final Map<String, DbList<?>> cache = new HashMap<>();
     private final Database db;
     private final String table;

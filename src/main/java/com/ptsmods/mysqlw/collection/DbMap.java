@@ -22,11 +22,11 @@ import static com.ptsmods.mysqlw.Database.checkNotNull;
 public class DbMap<K, V> extends AbstractMap<K, V> implements DbCollection {
 
     private static final TablePreset preset = TablePreset.create("map_")
-            .putColumn("m_key", ColumnType.VARCHAR.createStructure()
+            .putColumn("m_key", ColumnType.VARCHAR.struct()
                     .configure(sup -> sup.apply(255))
                     .setPrimary(true)
                     .setNullAllowed(false))
-            .putColumn("m_val", ColumnType.TEXT.createStructure())
+            .putColumn("m_val", ColumnType.TEXT.struct())
             .addIndex(TableIndex.index("m_key", TableIndex.Type.FULLTEXT));
     private static final Map<String, DbMap<?, ?>> cache = new HashMap<>();
     private final Database db;

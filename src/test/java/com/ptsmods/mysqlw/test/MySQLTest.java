@@ -4,8 +4,10 @@ import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.collection.DbList;
 import com.ptsmods.mysqlw.collection.DbMap;
 import com.ptsmods.mysqlw.collection.DbSet;
+import com.ptsmods.mysqlw.procedure.BlockBuilder;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.QueryConditions;
+import com.ptsmods.mysqlw.table.ColumnDefault;
 import com.ptsmods.mysqlw.table.ColumnType;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
@@ -146,7 +148,7 @@ class MySQLTest {
     @Test
     void createTable() throws SQLException {
         assertFalse(getDb().tableExists("temptable"));
-        TablePreset.create("temptable").putColumn("var", ColumnType.TEXT.createStructure()).create(getDb());
+        TablePreset.create("temptable").putColumn("var", ColumnType.TEXT.struct()).create(getDb());
         assertTrue(getDb().tableExists("temptable"));
         getDb().drop("temptable");
         assertFalse(getDb().tableExists("temptable"));
@@ -166,7 +168,7 @@ class MySQLTest {
     @Test
     void typeConverter() throws SQLException {
         Database.registerTypeConverter(UUID.class, id -> id == null ? null : Database.enquote(id.toString()), UUID::fromString);
-        TablePreset.create("typetest").putColumn("id", ColumnType.CHAR.createStructure().configure(sup -> sup.apply(36))).create(getDb());
+        TablePreset.create("typetest").putColumn("id", ColumnType.CHAR.struct().configure(sup -> sup.apply(36))).create(getDb());
         getDb().truncate("typetest");
         UUID id = UUID.randomUUID();
         assertEquals(1, getDb().insert("typetest", "id", id));
@@ -175,7 +177,7 @@ class MySQLTest {
 
     @Test
     void createIndex() throws SQLException {
-        TablePreset.create("indextest").putColumn("col", ColumnType.TEXT.createStructure()).create(getDb());
+        TablePreset.create("indextest").putColumn("col", ColumnType.TEXT.struct()).create(getDb());
         assertDoesNotThrow(() -> getDb().createIndex("indextest", TableIndex.index("fulltexttest", "col", TableIndex.Type.FULLTEXT)));
         getDb().drop("indextest");
     }
@@ -184,11 +186,12 @@ class MySQLTest {
     void createTableWithIndices() throws SQLException {
         Database db = getDb();
         assertDoesNotThrow(() -> TablePreset.create("indicestest")
-                .putColumn("col1", ColumnType.TEXT.createStructure())
-                .putColumn("col2", ColumnType.TEXT.createStructure())
+                .putColumn("col1", ColumnType.TEXT.struct())
+                .putColumn("col2", ColumnType.TEXT.struct())
                 .addIndex(TableIndex.index("col1index", "col1", TableIndex.Type.FULLTEXT))
                 .addIndex(TableIndex.index("col2index", "col2", TableIndex.Type.INDEX))
                 .create(db)); // We're testing if TablePreset#create(Database) throws an error here, not if #getDb() does.
         db.drop("indicestest");
     }
+
 }

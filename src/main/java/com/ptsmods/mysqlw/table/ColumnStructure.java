@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 /**
  * A structure used to describe a column.<br>
  * Used when making new tables.<br>
- * Acquire a {@link ColumnStructure} via {@link ColumnType#createStructure()} on any of the types in that class.
+ * Acquire a {@link ColumnStructure} via {@link ColumnType#struct()} on any of the types in that class.
  * @param <S> The type of the supplier or functions used to get the typeString of the {@link ColumnType} used to create this structure.
  */
 public class ColumnStructure<S> {

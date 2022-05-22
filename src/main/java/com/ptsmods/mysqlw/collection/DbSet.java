@@ -20,7 +20,7 @@ import static com.ptsmods.mysqlw.Database.checkNotNull;
 @SuppressWarnings("unused")
 public class DbSet<E> extends AbstractSet<E> implements DbCollection {
     private static final TablePreset preset = TablePreset.create("set_")
-            .putColumn("value", ColumnType.VARCHAR.createStructure()
+            .putColumn("value", ColumnType.VARCHAR.struct()
                     .configure(sup -> sup.apply(255))
                     .setPrimary(true)
                     .setNullAllowed(false)
