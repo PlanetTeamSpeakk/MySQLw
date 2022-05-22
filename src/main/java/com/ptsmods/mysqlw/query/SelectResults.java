@@ -253,7 +253,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
 
     @Override
     public boolean containsAll(@NotNull Collection<?> c) {
-        return data.containsAll(c);
+        return new HashSet<>(data).containsAll(c);
     }
 
     @Override
