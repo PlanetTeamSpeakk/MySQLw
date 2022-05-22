@@ -1350,12 +1350,11 @@ public class Database {
      * @param <T> The generic type of the object.
      * @return An object
      */
-    @SuppressWarnings("unchecked")
     public static <T> T getFromString(String s, Class<T> clazz) {
-        return reverseClassConverters.containsKey(clazz) ? (T) reverseClassConverters.get(clazz).apply(s) : reverseClassConverters.entrySet().stream()
+        return reverseClassConverters.containsKey(clazz) ? clazz.cast(reverseClassConverters.get(clazz).apply(s)) : reverseClassConverters.entrySet().stream()
                 .filter(entry -> entry.getKey().isAssignableFrom(clazz))
                 .findFirst()
-                .map(entry -> (T) entry.getValue().apply(s))
+                .map(entry -> clazz.cast(entry.getValue().apply(s)))
                 .orElseThrow(() -> new IllegalArgumentException("Class " + clazz.getName() + " has no registered type converters."));
     }
 
