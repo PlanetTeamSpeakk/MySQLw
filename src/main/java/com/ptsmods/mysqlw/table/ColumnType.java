@@ -273,7 +273,7 @@ public class ColumnType<S> {
 
     /**
      * @return A new {@link ColumnStructure} for this type
-     * @deprecated Use the shorthand {{@link #struct()}} instead.
+     * @deprecated Use the shorthand {@link #struct()} instead.
      */
     @Deprecated
     public ColumnStructure<S> createStructure() {
