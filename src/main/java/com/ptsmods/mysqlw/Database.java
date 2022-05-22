@@ -5,6 +5,7 @@ import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
@@ -124,7 +125,14 @@ public class Database {
     public static Database connect(String host, int port, String name, String username, String password) throws SQLException {
         checkNotNull(host, "host");
         checkNotNull(name, "name");
-        Database db = new Database(RDBMS.MySQL, DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/?autoReconnect=true", username, password), name);
+
+        try {
+            Class.forName(RDBMS.MySQL.getInitialLoadClass());
+        } catch (ClassNotFoundException e) {
+            throw new SQLException("Could not find MySQL connector on classpath, is it loaded?", e);
+        }
+
+        Database db = new Database(RDBMS.MySQL, DriverManager.getConnection(RDBMS.MySQL.formatConnectionUrl(host + ':' + port), username, password), name);
         db.execute("CREATE DATABASE IF NOT EXISTS " + name + ";"); // Create database if it does not yet exist.
         db.getConnection().setCatalog(name);
         return db;
@@ -138,11 +146,11 @@ public class Database {
      */
     public static Database connect(File file) throws SQLException {
         try {
-            Class.forName("org.sqlite.JDBC");
+            Class.forName(RDBMS.SQLite.getInitialLoadClass());
         } catch (ClassNotFoundException e) {
             throw new SQLException("Could not find SQLite connector on classpath, is it loaded?", e);
         }
-        return new Database(RDBMS.SQLite, DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath()), file.getName().substring(file.getName().lastIndexOf('.')));
+        return new Database(RDBMS.SQLite, DriverManager.getConnection(RDBMS.SQLite.formatConnectionUrl(file.getAbsolutePath())), file.getName().substring(file.getName().lastIndexOf('.')));
     }
 
     /**
@@ -1397,19 +1405,22 @@ public class Database {
     public enum RDBMS {
         MySQL("com.mysql.cj.jdbc.Driver", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml",
                 "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${VERSION}/mysql-connector-java-${VERSION}.jar",
+                "jdbc:mysql://%s/?autoReconnect=true",
                 name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name))),
         SQLite("org.sqlite.JDBC", "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml",
                 "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/${VERSION}/sqlite-jdbc-${VERSION}.jar",
+                "jdbc:sqlite:%s",
                 name -> Executors.newFixedThreadPool(1, r -> new Thread(r, "Database Thread - " + name))), // Preventing database lock, only one thread can use an SQLite database at a time.
-        UNKNOWN(null, null, null, name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name)));
+        UNKNOWN(null, null, null, null, name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name)));
 
-        private final String initialLoadClass, metadataUrl, downloadUrl;
+        private final String initialLoadClass, metadataUrl, downloadUrl, connectionUrl;
         private final Function<String, Executor> defaultExecutor;
 
-        RDBMS(String initialLoadClass, String metadataUrl, String downloadUrl, Function<String, Executor> defaultExecutor) {
+        RDBMS(String initialLoadClass, String metadataUrl, String downloadUrl, String connectionUrl, Function<String, Executor> defaultExecutor) {
             this.initialLoadClass = initialLoadClass;
             this.metadataUrl = metadataUrl;
             this.downloadUrl = downloadUrl;
+            this.connectionUrl = connectionUrl;
             this.defaultExecutor = defaultExecutor;
         }
 
@@ -1423,6 +1434,11 @@ public class Database {
 
         public String getDownloadUrl(String version) {
             return downloadUrl == null ? null : downloadUrl.replace("${VERSION}", version);
+        }
+
+        @NotNull
+        public String formatConnectionUrl(String host) {
+            return connectionUrl == null ? "" : String.format(connectionUrl, host);
         }
 
         public Executor getDefaultExecutor(String name) {
