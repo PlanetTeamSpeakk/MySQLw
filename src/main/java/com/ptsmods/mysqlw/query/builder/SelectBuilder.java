@@ -35,6 +35,15 @@ public class SelectBuilder {
     }
 
     /**
+     * Create a new SelectBuilder for use in {@link com.ptsmods.mysqlw.procedure.BlockBuilder BlockBuilder}s.
+     * @param table The table to select from
+     * @return A new SelectBuilder
+     */
+    public static SelectBuilder create(String table) {
+        return new SelectBuilder(null, table);
+    }
+
+    /**
      * Select a column or {@link QueryFunction}.
      * @param column The column or {@link QueryFunction} to select
      * @return This SelectBuilder
@@ -167,7 +176,7 @@ public class SelectBuilder {
 
         query.delete(query.length()-2, query.length())
                 .append(target == null ? "" : "INTO " + target)
-                .append(" FROM ").append(Database.engrave(table))
+                .append(table == null ? "" : " FROM " + Database.engrave(table))
                 .append(condition == null ? "" : " WHERE " + condition)
                 .append(order == null ? "" : " ORDER BY " + order)
                 .append(limit == null ? "" : " " + limit);
@@ -180,6 +189,7 @@ public class SelectBuilder {
      * @return The raw {@link ResultSet}
      */
     public ResultSet executeRaw() {
+        if (db == null) throw new IllegalStateException("Cannot execute a query built for use in BlockBuilders.");
         return db.executeQuery(buildQuery());
     }
 
@@ -254,5 +264,17 @@ public class SelectBuilder {
      */
     public QueryOrder getOrder() {
         return order;
+    }
+
+    @Override
+    public SelectBuilder clone() {
+        SelectBuilder builder = create(db, table);
+        for (Pair<CharSequence, String> column : columns) builder.select(column.getLeft(), column.getRight());
+        builder.into(target);
+        builder.where(condition);
+        builder.limit(limit);
+        builder.order(order);
+
+        return builder;
     }
 }

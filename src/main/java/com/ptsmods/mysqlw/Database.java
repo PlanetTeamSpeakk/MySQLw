@@ -1,8 +1,14 @@
 package com.ptsmods.mysqlw;
 
+import com.ptsmods.mysqlw.procedure.ProcedureParameter;
+import com.ptsmods.mysqlw.procedure.stmt.DelimiterStmt;
+import com.ptsmods.mysqlw.procedure.stmt.block.EndStmt;
+import com.ptsmods.mysqlw.procedure.stmt.misc.BeginStmt;
 import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
+import com.ptsmods.mysqlw.procedure.BlockBuilder;
+import com.ptsmods.mysqlw.procedure.TriggeringEvent;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
 import org.jetbrains.annotations.NotNull;
@@ -26,6 +32,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @SuppressWarnings({"unused", "UnusedReturnValue"}) // It's an API, I know they're unused...
 public class Database {
@@ -420,6 +427,26 @@ public class Database {
      */
     public SelectBuilder selectBuilder(String table) {
         return SelectBuilder.create(this, table);
+    }
+
+    /**
+     * Selects a single variable stored in the RDBMS.
+     * @param variable The name of the variable
+     * @return The value of the variable
+     * @see #selectVariableAsync(String)
+     */
+    public Object selectVariable(String variable) {
+        return SelectResults.parse(executeQuery("SELECT " + variable + ';')).get(0).get(variable);
+    }
+
+    /**
+     * Asynchronously selects a single variable stored in the RDBMS.
+     * @param variable The name of the variable
+     * @return The value of the variable
+     * @see #selectVariable(String)
+     */
+    public CompletableFuture<Object> selectVariableAsync(String variable) {
+        return runAsync(() -> selectVariable(variable));
     }
 
     /**
@@ -1263,12 +1290,102 @@ public class Database {
         return runAsync(() -> createIndex(table, index));
     }
 
+    /**
+     * Creates a new trigger with the given statements.
+     * @param name The name of the trigger
+     * @param table The table to create the trigger on
+     * @param event The event which will trigger this trigger
+     * @param trigger The statements to execute when this trigger is triggered
+     * @see #createTriggerAsync(String, String, TriggeringEvent, BlockBuilder)
+     */
+    public void createTrigger(String name, String table, TriggeringEvent event, BlockBuilder trigger) {
+        String query = "DELIMITER $$\n" +
+                "CREATE TRIGGER " +
+                enquote(name) +
+                event.name().replace('_', ' ') +
+                " ON " +
+                enquote(table) +
+                " FOR EACH ROW\n" +
+                "BEGIN" +
+                trigger +
+                "END $$\n" +
+                "DELIMITER ;";
+
+        execute(query);
+    }
+
+    /**
+     * Asynchronously creates a new trigger with the given statements.
+     * @param name The name of the trigger
+     * @param table The table to create the trigger on
+     * @param event The event which will trigger this trigger
+     * @param trigger The statements to execute when this trigger is triggered
+     * @see #createTrigger(String, String, TriggeringEvent, BlockBuilder)
+     * @return A CompletableFuture
+     */
+    public CompletableFuture<Void> createTriggerAsync(String name, String table, TriggeringEvent event, BlockBuilder trigger) {
+        return runAsync(() -> createTrigger(name, table, event, trigger));
+    }
+
+    /**
+     * Creates a new procedure with the given statements.
+     * @param name The name of the procedure
+     * @param parameters The parameters of the procedure
+     * @param procedure The statements to execute when this procedure is called
+     * @see #createProcedureAsync(String, ProcedureParameter[], BlockBuilder)
+     */
+    public void createProcedure(String name, ProcedureParameter[] parameters, BlockBuilder procedure) {
+        StringBuilder builder = new StringBuilder("DELIMITER $$\nCREATE PROCEDURE ").append(name).append('(');
+
+        for (ProcedureParameter parameter : parameters) builder.append(parameter);
+        builder.append(')');
+        procedure.stmt(0, BeginStmt.begin());
+        procedure.stmt(EndStmt.end("$$"));
+        procedure.stmt(DelimiterStmt.delimiter(";"));
+        execute(builder.toString());
+    }
+
+    /**
+     * Asynchronously creates a new procedure with the given statements.
+     * @param name The name of the procedure
+     * @param parameters The parameters of the procedure
+     * @param procedure The statements to execute when this procedure is called
+     * @see #createProcedure(String, ProcedureParameter[], BlockBuilder)
+     * @return A CompletableFuture
+     */
+    public CompletableFuture<Void> createProcedureAsync(String name, ProcedureParameter[] parameters, BlockBuilder procedure) {
+        return runAsync(() -> createProcedure(name, parameters, procedure));
+    }
+
+    /**
+     * Calls a procedure with the given parameters.
+     * @param procedure The name of the procedure to call
+     * @param parameters The parameters to pass when calling the procedure
+     * @see #callAsync(String, Object...)
+     */
+    public void call(String procedure, Object... parameters) {
+        execute(String.format("CALL %s(%s);", procedure, Arrays.stream(parameters).map(Database::getAsString).collect(Collectors.joining(", "))));
+    }
+
+    /**
+     * Asynchronously calls a procedure with the given parameters.
+     * @param procedure The name of the procedure to call
+     * @param parameters The parameters to pass when calling the procedure
+     * @see #call(String, Object...)
+     * @return A CompletableFuture
+     */
+    public CompletableFuture<Void> callAsync(String procedure, Object... parameters) {
+        return runAsync(() -> call(procedure, parameters));
+    }
+
     @Override
     public String toString() {
         return "Database[" +
                 "name='" + getName() + '\'' +
                 ']';
     }
+
+    // UTILITY METHODS
 
     /**
      * Puts the given String in quotes and escapes any quotes in it to avoid SQL injection.
@@ -1316,6 +1433,7 @@ public class Database {
      * Converts an Object to a String to be used in queries. The default cases are as follows:
      * <ul>
      *     <li><b>Null</b>: {@code null}</li>
+     *     <li><b>A boolean</b>: String representation of said boolean in uppercase</li>
      *     <li><b>Any number</b>: String representation of said number</li>
      *     <li><b>Byte array</b>: a hex String representing the given bytes</li>
      *     <li><b>{@link QueryFunction}</b>: the {@link QueryFunction}'s function</li>
@@ -1327,6 +1445,7 @@ public class Database {
      */
     public static String getAsString(Object o) {
         if (o == null) return "null";
+        else if (o instanceof Boolean) return o.toString().toUpperCase(Locale.ROOT);
         else if (o instanceof Number) return o.toString();
         else if (o instanceof byte[]) return "0x" + encodeHex((byte[]) o).toUpperCase(Locale.ROOT); // For blobs and geometry objects
         else if (o instanceof QueryFunction) return ((QueryFunction) o).getFunction();

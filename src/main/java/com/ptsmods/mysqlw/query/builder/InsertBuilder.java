@@ -27,10 +27,23 @@ public class InsertBuilder {
         return new InsertBuilder(db, table, columns.toArray(new String[0]));
     }
 
+    public static InsertBuilder create(String table, String... columns) {
+        return new InsertBuilder(null, table, columns);
+    }
+
+    public static InsertBuilder create(String table, List<String> columns) {
+        return new InsertBuilder(null, table, columns.toArray(new String[0]));
+    }
+
     public InsertBuilder insert(Object... values) {
         if (values.length != columns.length) throw new IllegalArgumentException("Amount of values passed not equal to columns being filled.");
 
         this.values.add(values);
+        return this;
+    }
+
+    public InsertBuilder insert(Object[]... values) {
+        for (Object[] value : values) insert(value);
         return this;
     }
 
@@ -94,5 +107,12 @@ public class InsertBuilder {
 
     public CompletableFuture<Integer> executeReplaceUpdateAsync() {
         return db.executeUpdateAsync(buildReplaceUpdateQuery());
+    }
+
+    @Override
+    public InsertBuilder clone() {
+        InsertBuilder builder = create(db, table, columns);
+        builder.insert(values);
+        return builder;
     }
 }
