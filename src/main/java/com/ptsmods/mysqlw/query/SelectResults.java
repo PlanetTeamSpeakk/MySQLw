@@ -62,7 +62,8 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
                 }
                 set.getStatement().close();
             } catch (SQLException e) {
-                db.logOrThrow("Error iterating through results from table '" + table + "'.", e);
+                if (db != null)
+                    db.logOrThrow("Error iterating through results from table '" + table + "'.", e);
             }
         return new SelectResults(db, table, columns, condition, order, limit, result);
     }
