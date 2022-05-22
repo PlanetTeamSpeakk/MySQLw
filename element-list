@@ -1,0 +1,14 @@
+com.ptsmods.mysqlw
+com.ptsmods.mysqlw.collection
+com.ptsmods.mysqlw.procedure
+com.ptsmods.mysqlw.procedure.stmt
+com.ptsmods.mysqlw.procedure.stmt.block
+com.ptsmods.mysqlw.procedure.stmt.conditional
+com.ptsmods.mysqlw.procedure.stmt.cursor
+com.ptsmods.mysqlw.procedure.stmt.loop
+com.ptsmods.mysqlw.procedure.stmt.misc
+com.ptsmods.mysqlw.procedure.stmt.query
+com.ptsmods.mysqlw.procedure.stmt.vars
+com.ptsmods.mysqlw.query
+com.ptsmods.mysqlw.query.builder
+com.ptsmods.mysqlw.table
