@@ -49,6 +49,13 @@ public class ColumnStructure<S> {
     }
 
     /**
+     * @return The string set using {@link #configure(Function)}.
+     */
+    public String getTypeString() {
+        return typeString;
+    }
+
+    /**
      * Run and return the value of the supplier of the selected {@link ColumnType}.
      * <p style="font-weight: bold; color: red;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
      * @param configurator The function that gets the supplier and returns its value.
@@ -81,13 +88,20 @@ public class ColumnStructure<S> {
     }
 
     /**
-     * @param unique Whether this column should only contain unique values.
+     * @param unique Whether this column may only contain unique values.
      * @return This structure
      */
     public ColumnStructure<S> setUnique(boolean unique) {
         checkRO();
         this.unique = unique;
         return this;
+    }
+
+    /**
+     * @return Whether this column may only contain unique values.
+     */
+    public boolean isUnique() {
+        return unique;
     }
 
     /**
@@ -98,6 +112,13 @@ public class ColumnStructure<S> {
         checkRO();
         this.primary = primary;
         return this;
+    }
+
+    /**
+     * @return Whether this column is the PRIMARY KEY of its table.
+     */
+    public boolean isPrimary() {
+        return primary;
     }
 
     /**
@@ -113,6 +134,13 @@ public class ColumnStructure<S> {
     }
 
     /**
+     * @return The default value of this column, either {@link ColumnDefault#NULL NULL}, {@link ColumnDefault#CURRENT_TIMESTAMP CURRENT_TIMESTAMP} or a custom default value.
+     */
+    public ColumnDefault getDefValue() {
+        return defValue;
+    }
+
+    /**
      * @param attributes The attributes of the type of this column.
      * @return This structure
      */
@@ -120,6 +148,13 @@ public class ColumnStructure<S> {
         checkRO();
         this.attributes = attributes;
         return this;
+    }
+
+    /**
+     * @return The attributes of the type of this column.
+     */
+    public ColumnAttributes getAttributes() {
+        return attributes;
     }
 
     /**
@@ -133,6 +168,13 @@ public class ColumnStructure<S> {
     }
 
     /**
+     * @return Whether this column can contain null values.
+     */
+    public boolean isNullAllowed() {
+        return nullAllowed;
+    }
+
+    /**
      * @param autoIncrement Whether the value of this column should be incremented by one for each row inserted.
      * @return This structure.
      */
@@ -140,6 +182,13 @@ public class ColumnStructure<S> {
         checkRO();
         this.autoIncrement = autoIncrement;
         return this;
+    }
+
+    /**
+     * @return Whether the value of this column should be incremented by one for each row inserted.
+     */
+    public boolean isAutoIncrement() {
+        return autoIncrement;
     }
 
     /**
@@ -153,6 +202,13 @@ public class ColumnStructure<S> {
     }
 
     /**
+     * @return The comment of this column. Used to describe what it's for.
+     */
+    public String getComment() {
+        return comment;
+    }
+
+    /**
      * @param extra Anything else you could possibly want to add that this class does not cover.
      *              It would also be appreciated if you could make a pull request or issue to
      *              cover this on <a href="https://github.com/PlanetTeamSpeakk/MySQLw">the GitHub page</a>.
@@ -162,6 +218,13 @@ public class ColumnStructure<S> {
         checkRO();
         this.extra = extra;
         return this;
+    }
+
+    /**
+     * @return Anything else you could possibly want to add that this class does not cover.
+     */
+    public String getExtra() {
+        return extra;
     }
 
     /**
