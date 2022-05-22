@@ -271,8 +271,19 @@ public class ColumnType<S> {
         return supplier;
     }
 
+    /**
+     * @return A new {@link ColumnStructure} for this type
+     */
     public ColumnStructure<S> createStructure() {
         return new ColumnStructure<>(this);
+    }
+
+    /**
+     * Shorthand for {@link #createStructure()}
+     * @return A new {@link ColumnStructure} for this type
+     */
+    public ColumnStructure<S> struct() {
+        return createStructure();
     }
 
     private static String parseLengthType(String type, Integer length) {
