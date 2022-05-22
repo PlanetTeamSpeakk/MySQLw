@@ -1,5 +1,7 @@
 package com.ptsmods.mysqlw.query;
 
+import static com.ptsmods.mysqlw.Database.enquote;
+
 /**
  * To make sure that functions don't get enquoted when putting them in a query, wrap them in this class.
  * An example would be {@code JSON_CONTAINS(`column`, '{"value": {"child": 7}}')} or {@code GeomFromText('POINT(42.8, 69.7)')} although that one is obsolete.
@@ -15,6 +17,55 @@ public class QueryFunction implements CharSequence {
      */
     public QueryFunction(String function) {
         this.function = function;
+    }
+
+    /**
+     * Creates a basic new QueryFunction that adds two columns or variables together.
+     * @param arg1 The first column or variable
+     * @param arg2 The second column or variable
+     * @return Addition QueryFunction
+     */
+    public static QueryFunction add(String arg1, String arg2) {
+        return new QueryFunction(enquote(arg1) + " + " + enquote(arg2));
+    }
+
+    /**
+     * Creates a basic new QueryFunction that subtracts two columns or variables from each other.
+     * @param arg1 The first column or variable
+     * @param arg2 The second column or variable
+     * @return Subtraction QueryFunction
+     */
+    public static QueryFunction subtract(String arg1, String arg2) {
+        return new QueryFunction(enquote(arg1) + " - " + enquote(arg2));
+    }
+
+    /**
+     * Creates a basic new QueryFunction that multiplies two columns or variables.
+     * @param arg1 The first column or variable
+     * @param arg2 The second column or variable
+     * @return Multiplication QueryFunction
+     */
+    public static QueryFunction multiply(String arg1, String arg2) {
+        return new QueryFunction(enquote(arg1) + " * " + enquote(arg2));
+    }
+
+    /**
+     * Creates a basic new QueryFunction that divides two columns or variables.
+     * @param arg1 The first column or variable
+     * @param arg2 The second column or variable
+     * @return Division QueryFunction
+     */
+    public static QueryFunction divide(String arg1, String arg2) {
+        return new QueryFunction(enquote(arg1) + " / " + enquote(arg2));
+    }
+
+    /**
+     * Creates a basic new QueryFunction that counts rows.
+     * @param arg What to count
+     * @return Count QueryFunction
+     */
+    public static QueryFunction count(String arg) {
+        return new QueryFunction("count(" + arg + ")");
     }
 
     /**
