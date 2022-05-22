@@ -12,6 +12,7 @@ public class SilentSQLException extends RuntimeException {
     public SilentSQLException(SQLException parent) {
         super(parent.getMessage(), parent.getCause());
         this.parent = parent;
+        setStackTrace(parent.getStackTrace());
     }
 
     public SQLException getParent() {
