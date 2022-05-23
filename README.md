@@ -19,6 +19,7 @@ This library is merely a wrapper for the default Java SQL library intended to be
   + [Replacing](#replacing)
   + [Creating tables](#creating-tables)
   + [Database-backed collections](#database-backed-collections)
+  + [Triggers and Procedures](#triggers-and-procedures)
   + [Type conversion](#type-conversion)
   + [Other smaller features](#other-smaller-features)
 * [Async](#async)
