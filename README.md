@@ -19,6 +19,7 @@ This library is merely a wrapper for the default Java SQL library intended to be
   + [Replacing](#replacing)
   + [Creating tables](#creating-tables)
   + [Database-backed collections](#database-backed-collections)
+  + [Triggers and Procedures](#triggers-and-procedures)
   + [Type conversion](#type-conversion)
   + [Other smaller features](#other-smaller-features)
 * [Async](#async)
@@ -27,7 +28,7 @@ This library is merely a wrapper for the default Java SQL library intended to be
 ### Gradle
 To add MySQLw to your Gradle project, add the following line to your dependencies:
 ```gradle
-implementation 'com.ptsmods:mysqlw:1.6'
+implementation 'com.ptsmods:mysqlw:1.7'
 ```
 
 ### Maven
@@ -36,7 +37,7 @@ To add MySQLw to your Maven project, add the following code segment to your pom.
 <dependency>
   <groupId>com.ptsmods</groupId>
   <artifactId>mysqlw</artifactId>
-  <version>1.6</version>
+  <version>1.7</version>
 </dependency>
 ```
 
@@ -108,6 +109,31 @@ Database.select(String table, CharSequence[] columns, QueryCondition condition);
 Database.select(String table, CharSequence[] columns, QueryCondition condition, QueryOrder order, QueryLimit limit);
 ```
 
+#### SelectBuilder
+Because using all those select methods can be quite tricky and messy, there's also a `SelectBuilder`.  
+As well as making selecting cleaner, SelectBuilder allows you to pass an alias for certain columns, e.g. selecting `count(*)` as `count`, 
+and you can select into tables and variables.  
+
+To create a new SelectBuilder, either use `Database#selectBuilder(String)` or `SelectBuilder#create(Database, String)`.  
+To select a column, use `SelectBuilder#select(CharSequence)`, `SelectBuilder#select(CharSequence, String)`, `SelectBuilder#select(CharSequence...)` or `SelectBuilder#select(Iterable)`. The second parameter of `SelectBuilder#select(CharSequence, String)` is an optional alias.  
+To select into a table or variable, use `SelectBuilder#into(String)`.  
+To supply a condition, use `SelectBuilder#where(QueryCondition)`.  
+To supply an order, use `SelectBuilder#order(QueryOrder)`, `SelectBuilder#order(String)` or `SelectBuilder#order(String, QueryOrder.QueryDirection)`.  
+And last but not least, you can supply a limit using `SelectBuilder#limit(QueryLimit)`, `SelectBuilder#limit(int)` or `SelectBuilder#limit(int, int)`.  
+
+Say you have a list of CharSequences you'd like to select from a table named `users` and you'd like to descendingly sort them by when they were created, but you only want 10 people from the 6th page and you only want people whose first name is John and whose last name starts with a D and you also wish to store the result in a table named `tempusers` and would like to select the `created_at` column as `time`, then you could use this example:  
+```java
+Database db = ...;
+SelectResults res = db.selectBuilder("users")
+    .select(columns)
+    .select("created_at", "time")
+    .into("tempusers")
+    .where(QueryCondition.equals("first_name", "John").and(QueryCondition.like("last_name", "D%")))
+    .order("time", QueryOrder.OrderDirection.DESC)
+    .limit(10, 6 * 10)
+    .execute();
+```
+
 ### Inserting
 #### New data
 Inserting one value into one column is the easiest method. It can easily be done using
@@ -141,6 +167,14 @@ db.insertIgnore("people", new String[] {"id", "first_name", "last_name", "email"
 Where the last parameter 'id' is the name of the table's PRIMARY KEY column.  
 This would end up doing nothing as there is already a row where column `id` has a value of 3.
 
+#### InsertBuilder
+Aside from [SelectBuilder](#selectbuilder), there's also an InsertBuilder. This one is a little less sophisticated, however.  
+For the time being, you can only do normal insertions and replacements with this class.  
+To create an InsertBuilder, either use `Database#insertBuilder(String, String...)` or use `InsertBuilder#create(Database, String, String...)`.  
+The String parameter here is the table to insert into and the String varargs are the columns to insert into.  
+To insert data, use `InsertBuilder#insert(Object...)`, `InsertBuilder#insert(Object[]... values)` or `InsertBuilder#insert(Iterable)`.  
+Then use either `InsertBuilder#execute()` or `InsertBuilder#executeReplace()` to execute either an insert query or a replace query.  
+
 ### Updating
 You can also choose to update data rather than inserting it.  
 This can be done rather easily using
@@ -159,15 +193,15 @@ Creating tables has not been made simpler, but it sure has been made more sane.
 Now creating tables can be done using the following example:
 ```java
 TablePreset.create("users")
-    .putColumn("id", ColumnType.BIGINT.createStructure()
-        .satiateSupplier(sup -> sup.apply(null))
+    .putColumn("id", ColumnType.BIGINT.struct()
+        .configure(sup -> sup.apply(null))
         .setPrimary(true)
         .setNullAllowed(false))
-    .putColumn("username", ColumnType.VARCHAR.createStructure()
-        .satiateSupplier(sup -> sup.apply(16))
+    .putColumn("username", ColumnType.VARCHAR.struct()
+        .configure(sup -> sup.apply(16))
         .setNullAllowed(false))
-    .putColumn("password", ColumnType.CHAR.createStructure()
-        .satiateSupplier(sup -> sup.apply(128))
+    .putColumn("password", ColumnType.CHAR.struct()
+        .configure(sup -> sup.apply(128))
         .setNullAllowed(false))
     .create(db);
 ```
@@ -177,9 +211,9 @@ As you can see, it looks a little bit complicated at first sight, but it sure lo
 For starters the `TablePreset#create(String)` method. This method creates a new TablePreset with the given name. This name can be changed later and if you plan on using the preset multiple times, it is recommended you do so using `preset.setName("newname").create(db)`.  
 
 Next we have putting columns.  
-Columns are gotten by running `ColumnType#createStructure()` on your desired ColumnType.  
-If the selected ColumnType has a supplier that requires parameters, **it is mandatory that you satiate it**.  
-You can do so using `ColumnStructure#satiateSupplier(Function)` where the function takes a supplier of sorts and returns its value after passing it your desired values.  
+Columns are gotten by running `ColumnType#struct()` on your desired ColumnType.  
+If the selected ColumnType has a supplier that requires parameters, **it is mandatory that you configure it**.  
+You can do so using `ColumnStructure#configure(Function)` where the function takes a supplier of sorts and returns its value after passing it your desired values.  
 ColumnTypes can have suppliers for various reasons, but most often it requires one value which is the length or maximum length of the type.  
 In any case, any values passed to the supplier is what appears in the parentheses behind it.  
 Some, not all, suppliers also allow for being passed `null` values. Integers are an example of this.  
@@ -235,6 +269,15 @@ An example would be:
 ```
 Map<String, Integer> map = DbMap.getMap(db, "testmap", String.class, Integer.class);
 ```
+
+### Triggers and Procedures
+Since 1.7, you can create triggers and procedures with MySQLw. These are created using the `BlockBuilder` class which has a method for every single statement supported by MySQLw and can be used to create most basic triggers and procedures. Any statement that's not supported can still be used with `BlockBuilder#raw(String)` or `RawStmt#raw(String)`, but if you rely on these, I suggest you [file an issue](https://github.com/PlanetTeamSpeakk/MySQLw/issues/new).  
+You can create triggers using `Database#createTrigger(String, String, TriggeringEvent, BlockBuilder)` which creates a trigger with the given name on the given table.  
+Procedures can be created with `Database#createProcedure(String, ProcedureParameter[], BlockBuilder)` and called with `Database#call(String, Object...)`.  
+For an example on how to use `BlockBuilder` to create blocks, have a look at [the test I made for it](https://github.com/PlanetTeamSpeakk/MySQLw/blob/main/src/test/java/com/ptsmods/mysqlw/test/MySQLTest.java#L207).  
+
+It should also be noted that you can create your own statements if you wish, you'll just have to use `BlockBuilder#stmt(Statement)` to actually add it to BlockBuilders.  
+Any Statement implementing OpeningStatement will increase the indentation by one and any Statement implementing ClosingStatement will decrease it by one.
 
 ### Type conversion
 By default, MySQLw can use a null value, any type of Number, String or byte array (it is converted to hex String representation) in queries, but to do so, it must first prepare them.  
