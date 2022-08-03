@@ -107,14 +107,14 @@ publishing {
             }
         }
 
-//        maven {
-//            name = "GitHubPackages"
-//            url = ghUrlRoot + "/MySQLw"
-//            credentials(PasswordCredentials) {
-//                username = ghUsername
-//                password = ghToken
-//            }
-//        }
+        maven {
+            name = "GitHubPackages"
+            url = ghUrlRoot + "/MySQLw"
+            credentials(PasswordCredentials) {
+                username = ghUsername
+                password = ghToken
+            }
+        }
     }
 }
 
