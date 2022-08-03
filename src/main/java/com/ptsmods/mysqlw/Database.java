@@ -892,12 +892,8 @@ public class Database {
         duplicateValues.forEach((key, value) -> query.append('`').append(key).append('`').append('=').append(getAsString(value)).append(", "));
         if (duplicateValues.size() > 0) query.delete(query.length()-2, query.length());
         query.append(";");
-        try (Statement stmt = createStatement()) {
-            return stmt.executeUpdate(query.toString());
-        } catch (SQLException e) {
-            logOrThrow("Error executing '" + query + "' on database " + getName() + ".", e);
-            return 0;
-        }
+
+        return executeUpdate(query.toString());
     }
 
     /**
