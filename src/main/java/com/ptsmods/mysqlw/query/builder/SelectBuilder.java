@@ -78,7 +78,7 @@ public class SelectBuilder {
      * @param columns The columns or {@link QueryFunction}s or any combination to select
      * @return This SelectBuilder
      */
-    public SelectBuilder select(Iterable<CharSequence> columns) {
+    public SelectBuilder select(Iterable<? extends CharSequence> columns) {
         for (CharSequence column : columns) select(column);
         return this;
     }
