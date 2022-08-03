@@ -88,6 +88,15 @@ public class ColumnStructure<S> {
     }
 
     /**
+     * Sets unique to true.
+     * @return This structure
+     * @see #setUnique(boolean)
+     */
+    public ColumnStructure<S> setUnique() {
+        return setUnique(true);
+    }
+
+    /**
      * @param unique Whether this column may only contain unique values.
      * @return This structure
      */
@@ -102,6 +111,15 @@ public class ColumnStructure<S> {
      */
     public boolean isUnique() {
         return unique;
+    }
+
+    /**
+     * Sets primary to true.
+     * @return This structure
+     * @see #setPrimary(boolean) 
+     */
+    public ColumnStructure<S> setPrimary() {
+        return setPrimary(true);
     }
 
     /**
@@ -158,6 +176,24 @@ public class ColumnStructure<S> {
     }
 
     /**
+     * Sets null allowed to true.
+     * @return This structure
+     * @see #setNullAllowed(boolean)
+     */
+    public ColumnStructure<S> setNullable() {
+        return setNullAllowed(true);
+    }
+
+    /**
+     * Sets null allowed to false.
+     * @return This structure
+     * @see #setNullAllowed(boolean)
+     */
+    public ColumnStructure<S> setNonNull() {
+        return setNullAllowed(false);
+    }
+
+    /**
      * @param nullAllowed Whether this column can contain null values.
      * @return This structure
      */
@@ -174,6 +210,15 @@ public class ColumnStructure<S> {
         return nullAllowed;
     }
 
+    /**
+     * Sets auto increment to true.
+     * @return This structure.
+     * @see #setAutoIncrement(boolean) 
+     */
+    public ColumnStructure<S> setAutoIncrement() {
+        return setAutoIncrement(true);
+    }
+    
     /**
      * @param autoIncrement Whether the value of this column should be incremented by one for each row inserted.
      * @return This structure.
