@@ -30,13 +30,13 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@TestMethodOrder(MethodOrderer.Alphanumeric.class)
+@TestMethodOrder(MethodOrderer.MethodName.class)
 class MySQLTest {
 
     private static Database db = null;
 
     Database getDb() throws SQLException {
-        db = db == null ? (db = Database.connect("localhost", 3306, "test", "root", null)) : db;
+        db = db == null ? Database.connect("localhost", 3306, "test", "root", null) : db;
         db.setLogging(false);
         return db;
     }
@@ -259,7 +259,8 @@ class MySQLTest {
         b.end(";");
         String block = b.buildString();
 
-        String target = "BEGIN\n" +
+        String target =
+                "BEGIN\n" +
                 "  DECLARE done INT DEFAULT FALSE;\n" +
                 "  DECLARE a CHAR(16);\n" +
                 "  DECLARE b, c INT;\n" +
