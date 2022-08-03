@@ -103,7 +103,7 @@ public class TablePreset {
 
     public String buildQuery(Database.RDBMS type) {
         StringBuilder query = new StringBuilder("CREATE TABLE IF NOT EXISTS " + getName() + " (");
-        build(type).forEach((key, value) -> query.append(key).append(' ').append(value).append(", "));
+        build(type).forEach((key, value) -> query.append(Database.engrave(key)).append(' ').append(value).append(", "));
         if (type != Database.RDBMS.SQLite) getIndices().forEach(index -> query.append(index).append(", ")); // Indices do not work on SQLite apparently when creating a table.
         if (getColumns().size() > 0) query.delete(query.length() - 2, query.length());
         query.append(");");
