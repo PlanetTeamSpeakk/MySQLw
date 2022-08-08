@@ -326,8 +326,9 @@ public class Database {
      * @return A {@link} CompletableFuture.
      */
     public <T> CompletableFuture<T> runAsync(Supplier<T> sup) {
+        Exception rootTrace = new Exception("Trace to root of async call");
         return CompletableFuture.supplyAsync(sup, getExecutor()).exceptionally(t -> {
-            errorHandler.apply(t);
+            errorHandler.apply(new AsyncSQLException(t, rootTrace));
             return null;
         });
     }
@@ -338,7 +339,11 @@ public class Database {
      * @return A {@link} CompletableFuture.
      */
     private CompletableFuture<Void> runAsync(Runnable run) {
-        return CompletableFuture.runAsync(run, getExecutor()).exceptionally(errorHandler);
+        Exception rootTrace = new Exception("Trace to root of async call");
+        return CompletableFuture.runAsync(run, getExecutor()).exceptionally(t -> {
+            errorHandler.apply(new AsyncSQLException(t, rootTrace));
+            return null;
+        });
     }
 
     /**

@@ -303,4 +303,10 @@ class MySQLTest {
 
         assertEquals(block, target);
     }
+
+    @Test
+    void testAsyncExceptionTrace() throws SQLException {
+        // Should log the SQLException and the root trace leading to this method
+        getDb().selectAsync("nonexistent", "*");
+    }
 }
