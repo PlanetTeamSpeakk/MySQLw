@@ -15,6 +15,12 @@ public enum ColumnAttributes {
     /**
      * Same as {@link #UNSIGNED} but also fills the number with zeros to fit the length.
      */
+    UNSIGNED_ZEROFILL("UNSIGNED ZEROFILL"),
+    /**
+     * Same as {@link #UNSIGNED} but also fills the number with zeros to fit the length.
+     * @deprecated This was a typo, but the value has always been correct. Please use {@link #UNSIGNED_ZEROFILL} instead.
+     */
+    @Deprecated
     UNSIGED_ZEROFILL("UNSIGNED ZEROFILL"),
     /**
      * Store the current {@link ColumnType#TIMESTAMP TIMESTAMP} in this column whenever the row gets updated.
