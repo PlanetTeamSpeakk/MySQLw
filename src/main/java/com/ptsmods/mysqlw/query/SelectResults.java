@@ -2,7 +2,6 @@ package com.ptsmods.mysqlw.query;
 
 import com.ptsmods.mysqlw.Database;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.sql.Date;
 import java.sql.*;
@@ -15,8 +14,7 @@ import java.util.stream.Collectors;
  * Contains all data you need.
  */
 @SuppressWarnings("unused")
-public class SelectResults implements List<SelectResults.SelectResultRow> {
-
+public class SelectResults extends AbstractList<SelectResults.SelectResultRow> {
     private final Database db;
     private final String table;
     private final QueryCondition condition;
@@ -134,11 +132,6 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
     }
 
     @Override
-    public boolean isEmpty() {
-        return data.isEmpty();
-    }
-
-    @Override
     public boolean contains(Object o) {
         return data.contains(o);
     }
@@ -161,55 +154,6 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         return data.get(index);
     }
 
-    private void throwException() {
-        throw new UnsupportedOperationException("SelectResults cannot be altered.");
-    }
-
-    @Override
-    public SelectResultRow set(int index, SelectResultRow element) {
-        throwException();
-        return null;
-    }
-
-    @Override
-    public void add(int index, SelectResultRow element) {
-        throwException();
-    }
-
-    @Override
-    public SelectResultRow remove(int index) {
-        throwException();
-        return null;
-    }
-
-    @Override
-    public int indexOf(Object o) {
-        return data.indexOf(o);
-    }
-
-    @Override
-    public int lastIndexOf(Object o) {
-        return data.lastIndexOf(o);
-    }
-
-    @NotNull
-    @Override
-    public ListIterator<SelectResultRow> listIterator() {
-        return data.listIterator();
-    }
-
-    @NotNull
-    @Override
-    public ListIterator<SelectResultRow> listIterator(int index) {
-        return data.listIterator(index);
-    }
-
-    @NotNull
-    @Override
-    public List<SelectResultRow> subList(int fromIndex, int toIndex) {
-        return data.subList(fromIndex, toIndex);
-    }
-
     @Override
     public String toString() {
         return "SelectResults[" +
@@ -222,74 +166,10 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
                 ']';
     }
 
-    @NotNull
-    @Override
-    public Iterator<SelectResultRow> iterator() {
-        return data.iterator();
-    }
-
-    @NotNull
-    @Override
-    public Object[] toArray() {
-        return data.toArray();
-    }
-
-    @NotNull
-    @Override
-    public <T> T[] toArray(@NotNull T[] a) {
-        return data.toArray(a);
-    }
-
-    @Override
-    public boolean add(SelectResultRow selectResultRow) {
-        throwException();
-        return false;
-    }
-
-    @Override
-    public boolean remove(Object o) {
-        throwException();
-        return false;
-    }
-
-    @Override
-    public boolean containsAll(@NotNull Collection<?> c) {
-        return new HashSet<>(data).containsAll(c);
-    }
-
-    @Override
-    public boolean addAll(@NotNull Collection<? extends SelectResultRow> c) {
-        throwException();
-        return false;
-    }
-
-    @Override
-    public boolean addAll(int index, @NotNull Collection<? extends SelectResultRow> c) {
-        throwException();
-        return false;
-    }
-
-    @Override
-    public boolean removeAll(@NotNull Collection<?> c) {
-        throwException();
-        return false;
-    }
-
-    @Override
-    public boolean retainAll(@NotNull Collection<?> c) {
-        throwException();
-        return false;
-    }
-
-    @Override
-    public void clear() {
-        throwException();
-    }
-
     /**
      * A row in {@link SelectResults}
      */
-    public class SelectResultRow implements Map<String, Object> {
+    public class SelectResultRow extends AbstractMap<String, Object> {
 
         private final Map<String, Object> data;
 
@@ -312,37 +192,32 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
         }
 
         @Override
-        public int size() {
-            return columns.size();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return columns.isEmpty();
-        }
-
-        @Override
         public boolean containsKey(Object key) {
             return key instanceof String && columns.contains(key);
         }
 
         @Override
-        public boolean containsValue(Object value) {
-            return data.containsValue(value);
-        }
-
-        @Override
         public Object get(Object column) {
-            if (!(column instanceof String) || !getColumns().contains(column)) throw new IllegalArgumentException("No column by that name exists.");
-            else return data.get(column);
+            if (!(column instanceof String) || !getColumns().contains(column))
+                throw new IllegalArgumentException("No column by that name exists.");
+
+            return data.get(column);
         }
 
         public String getString(String column) {
             return (String) get(column);
         }
 
+        public UUID getUUID(String column) {
+            return UUID.fromString(getString(column));
+        }
+
         public Number getNumber(String column) {
             return (Number) get(column);
+        }
+
+        public boolean getBoolean(String column) {
+            return (Boolean) get(column);
         }
 
         public byte getByte(String column) {
@@ -371,7 +246,7 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
 
         public Timestamp getTimestamp(String column) {
             // If it's not a Timestamp or String, you're probably doing something wrong.
-            // (SQLite likes to send these as a String instead and I'm assuming that goes for the following types too)
+            // (SQLite likes to send these as a String instead, and I'm assuming that goes for the following types too)
             return get(column) instanceof Timestamp || get(column) == null ? (Timestamp) get(column) : Timestamp.valueOf(getString(column));
         }
 
@@ -405,50 +280,10 @@ public class SelectResults implements List<SelectResults.SelectResultRow> {
             return Database.getFromString(getString(column), type);
         }
 
-        private void throwException() {
-            throw new UnsupportedOperationException("SelectResult cannot be altered.");
-        }
-
-        @Nullable
-        @Override
-        public Object put(String key, Object value) {
-            throwException();
-            return null;
-        }
-
-        @Override
-        public Object remove(Object key) {
-            throwException();
-            return null;
-        }
-
-        @Override
-        public void putAll(@NotNull Map<? extends String, ?> m) {
-            throwException();
-        }
-
-        @Override
-        public void clear() {
-            throwException();
-        }
-
-        @NotNull
-        @Override
-        public Set<String> keySet() {
-            return Collections.unmodifiableSet(new LinkedHashSet<>(columns));
-        }
-
-        @NotNull
-        @Override
-        public Collection<Object> values() {
-            return data.values();
-        }
-
         @NotNull
         @Override
         public Set<Entry<String, Object>> entrySet() {
             return data.entrySet();
         }
     }
-
 }

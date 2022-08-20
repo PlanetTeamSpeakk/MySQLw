@@ -34,9 +34,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-@SuppressWarnings({"unused", "UnusedReturnValue"}) // It's an API, I know they're unused...
 public class Database {
-
     private static final Map<Connection, Database> databases = new HashMap<>();
     private static final Map<Class<?>, Function<Object, String>> classConverters = new HashMap<>();
     private static final Map<Class<?>, Function<String, Object>> reverseClassConverters = new HashMap<>();
@@ -47,7 +45,8 @@ public class Database {
      * It is not recommended you rely on this, but if, for example, you offer your users a choice whether
      * to use MySQL or SQLite and you do not want to make your jar file huge, there is always this option.
      * @param type The type of the connector to download.
-     * @param version The version of the connector to download. If null, automatically downloads the latest one. In case of {@link RDBMS#MySQL MySQL}, this version should correspond with the version of the server you're trying to connect to.
+     * @param version The version of the connector to download. If null, automatically downloads the latest one. In case of {@link RDBMS#MySQL MySQL},
+     *                this version should correspond with the version of the server you're trying to connect to.
      * @param file The file to download to.
      * @param useCache Whether to use a cached file if the given file already exists. If the given file does not appear to be a connector of the given type, a new version will be downloaded nonetheless.
      * @throws IllegalArgumentException If the given type is {@link RDBMS#UNKNOWN}.
@@ -78,7 +77,8 @@ public class Database {
     }
 
     private static void addToClassPath(File file, String initialLoadClass) {
-        if (System.getProperty("java.version").startsWith("1.8") && ClassLoader.getSystemClassLoader() instanceof URLClassLoader) { // In Java 1.8 the system classloader is a URLClassLoader, starting from Java 9 this is an AppClassLoader.
+        if (System.getProperty("java.version").startsWith("1.8") && ClassLoader.getSystemClassLoader() instanceof URLClassLoader) {
+            // In Java 1.8 the system classloader is a URLClassLoader, starting from Java 9 this is an AppClassLoader.
             URLClassLoader classLoader = (URLClassLoader) ClassLoader.getSystemClassLoader();
             Method method;
             try {
@@ -1450,6 +1450,7 @@ public class Database {
         else if (o instanceof Number) return o.toString();
         else if (o instanceof byte[]) return "0x" + encodeHex((byte[]) o).toUpperCase(Locale.ROOT); // For blobs and geometry objects
         else if (o instanceof QueryFunction) return ((QueryFunction) o).getFunction();
+        else if (o instanceof UUID) return enquote(o.toString());
         else if (classConverters.containsKey(o.getClass())) return classConverters.get(o.getClass()).apply(o);
         else return enquote(String.valueOf(o));
     }
@@ -1473,7 +1474,8 @@ public class Database {
     public static <T> T getFromString(String s, Class<T> clazz) {
         return reverseClassConverters.containsKey(clazz) ? clazz.cast(reverseClassConverters.get(clazz).apply(s)) : reverseClassConverters.entrySet().stream()
                 .filter(entry -> entry.getKey().isAssignableFrom(clazz))
-                .findFirst()
+                .min((e1, e2) -> e1.getKey() == clazz && e2.getKey() == clazz || // Prioritise converters that are of the exact type.
+                        e1.getKey() != clazz && e2.getKey() != clazz ? 0 : e1.getKey() == clazz ? 1 : -1)
                 .map(entry -> clazz.cast(entry.getValue().apply(s)))
                 .orElseThrow(() -> new IllegalArgumentException("Class " + clazz.getName() + " has no registered type converters."));
     }

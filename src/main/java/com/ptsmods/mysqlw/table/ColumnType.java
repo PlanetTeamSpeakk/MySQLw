@@ -14,6 +14,12 @@ public class ColumnType<S> {
     private static final Map<String, ColumnType<?>> typesBackend = new LinkedHashMap<>();
     // NUMERIC TYPES
     /**
+     * Boolean type (tinyint)<br>
+     * Basically the same as a {@link #TINYINT}, but with a length of 1.<br>
+     * Gets treated as a boolean by MySQL and the MySQL connector. (Possibly also SQLite, but this is untested)
+     */
+    public static final ColumnType<Supplier<String>> BOOLEAN = new ColumnType<>("BOOLEAN", () -> parseLengthType("TINYINT", 1));
+    /**
      * Tiny integer type (byte)<br>
      * <b>SIGNED:</b> -128 to 127<br>
      * <b>UNSIGNED:</b> 0 to 255
@@ -149,6 +155,10 @@ public class ColumnType<S> {
      * Same as {@link #VARCHAR} except Strings are stored as binary byte strings rather than character strings.
      */
     public static final ColumnType<Function<Integer, String>> VARBINARY = new ColumnType<>("VARBINARY", length -> parseLengthType("VARBINARY", length));
+    /**
+     * Char text type with fixed length of 36 characters, used to store {@link java.util.UUID UUID}s.
+     */
+    public static final ColumnType<Supplier<String>> UUID = new ColumnType<>("UUID", () -> "CHAR(36)");
 
 
     // BLOBS (Binary Large OBject)
