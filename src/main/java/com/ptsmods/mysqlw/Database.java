@@ -435,6 +435,15 @@ public class Database {
     }
 
     /**
+     * Creates a new {@link SelectBuilder} to use for selecting data.
+     * @param select The select query to select from.
+     * @return A new {@link SelectBuilder}.
+     */
+    public SelectBuilder selectBuilder(SelectBuilder select) {
+        return SelectBuilder.create(this, select);
+    }
+
+    /**
      * Selects a single variable stored in the RDBMS.
      * @param variable The name of the variable
      * @return The value of the variable

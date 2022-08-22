@@ -5,23 +5,24 @@ import com.ptsmods.mysqlw.Pair;
 import com.ptsmods.mysqlw.query.*;
 
 import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class SelectBuilder {
     private final Database db;
-    private final String table;
+    private final String selectionTarget;
     private final List<Pair<CharSequence, String>> columns = new ArrayList<>();
+    private String alias;
+    private final Set<Join> joins = new LinkedHashSet<>();
     private String target;
     private QueryCondition condition;
     private QueryOrder order;
     private QueryLimit limit;
 
-    private SelectBuilder(Database db, String table) {
+    private SelectBuilder(Database db, String selectionTarget) {
         this.db = db;
-        this.table = table;
+        this.selectionTarget = selectionTarget;
     }
 
     /**
@@ -35,12 +36,31 @@ public class SelectBuilder {
     }
 
     /**
+     * Create a new SelectBuilder selecting data from another select query on the given {@link Database}.
+     * @param db The database to select from
+     * @param select The query to select from
+     * @return A new SelectBuilder
+     */
+    public static SelectBuilder create(Database db, SelectBuilder select) {
+        return new SelectBuilder(db, "(" + select.buildQuery() + ")");
+    }
+
+    /**
      * Create a new SelectBuilder for use in {@link com.ptsmods.mysqlw.procedure.BlockBuilder BlockBuilder}s.
      * @param table The table to select from
      * @return A new SelectBuilder
      */
     public static SelectBuilder create(String table) {
         return new SelectBuilder(null, table);
+    }
+
+    /**
+     * Create a new SelectBuilder for use in {@link com.ptsmods.mysqlw.procedure.BlockBuilder BlockBuilder}s.
+     * @param select The query to select from
+     * @return A new SelectBuilder
+     */
+    public static SelectBuilder create(SelectBuilder select) {
+        return new SelectBuilder(null, "(" + select.buildQuery() + ")");
     }
 
     /**
@@ -80,6 +100,65 @@ public class SelectBuilder {
      */
     public SelectBuilder select(Iterable<? extends CharSequence> columns) {
         for (CharSequence column : columns) select(column);
+        return this;
+    }
+
+    /**
+     * Sets the alias of the table to select from used when selecting.<br>
+     * Mostly only useful in combination with {@link #join(Join)}
+     * @param alias The alias to use
+     * @return This SelectBuilder
+     */
+    public SelectBuilder alias(String alias) {
+        this.alias = alias;
+        return this;
+    }
+
+    /**
+     * Add a new {@link JoinType#INNER INNER} join.
+     * @param table The table to join with
+     * @param condition The condition to join on, required unless chaining multiple joins on MySQL.
+     * @return This select builder
+     */
+    public SelectBuilder join(String table, QueryCondition condition) {
+        return join(JoinType.INNER, table, condition);
+    }
+
+    /**
+     * Add a new join.
+     * @param type The type of the new join
+     * @param table The table to join with
+     * @param condition The condition to join on, required unless chaining multiple joins on MySQL.
+     * @return This SelectBuilder
+     */
+    public SelectBuilder join(JoinType type, String table, QueryCondition condition) {
+        return join(Join.builder()
+                .type(type)
+                .table(table)
+                .condition(condition));
+    }
+
+    /**
+     * Add a new join formed with a builder.
+     * @param join The join to add
+     * @return This SelectBuilder
+     */
+    public SelectBuilder join(Join.Builder join) {
+        return join(join.build());
+    }
+
+    /**
+     * Add a new prebuilt join.
+     * @param join The join to add
+     * @return This SelectBuilder
+     */
+    public SelectBuilder join(Join join) {
+        joins.add(join);
+        return this;
+    }
+
+    public SelectBuilder removeJoin(Join join) {
+        joins.remove(join);
         return this;
     }
 
@@ -171,12 +250,20 @@ public class SelectBuilder {
      */
     public String buildQuery() {
         StringBuilder query = new StringBuilder("SELECT ");
+
+        if (columns.isEmpty())
+            throw new IllegalStateException("Cannot build a query without having any columns to select.");
+
         for (Pair<CharSequence, String> seq : columns)
             query.append(Database.getAsString(seq.getLeft())).append(seq.getRight() == null ? "" : " AS " + Database.engrave(seq.getRight())).append(", ");
 
         query.delete(query.length()-2, query.length())
                 .append(target == null ? "" : "INTO " + target)
-                .append(table == null ? "" : " FROM " + Database.engrave(table))
+                .append(selectionTarget == null ? "" : " FROM " + Database.engrave(selectionTarget))
+                .append(alias == null ? "" : " AS " + Database.engrave(alias))
+                .append(joins.isEmpty() ? "" : " " + joins.stream()
+                        .map(Join::toString)
+                        .collect(Collectors.joining(" ")))
                 .append(condition == null ? "" : " WHERE " + condition)
                 .append(order == null ? "" : " ORDER BY " + order)
                 .append(limit == null ? "" : " " + limit);
@@ -206,7 +293,7 @@ public class SelectBuilder {
      * @return The parsed results
      */
     public SelectResults execute() {
-        return SelectResults.parse(db, table, executeRaw(), condition, order, limit);
+        return SelectResults.parse(db, selectionTarget, executeRaw(), condition, order, limit);
     }
 
     /**
@@ -226,9 +313,18 @@ public class SelectBuilder {
 
     /**
      * @return The table this builder will select from
+     * @deprecated Has been renamed to account for different usages. Use {@link #getSelectionTarget()} instead.
      */
+    @Deprecated
     public String getTable() {
-        return table;
+        return selectionTarget;
+    }
+
+    /**
+     * @return The table or query this builder will select from
+     */
+    public String getSelectionTarget() {
+        return selectionTarget;
     }
 
     /**
@@ -236,6 +332,13 @@ public class SelectBuilder {
      */
     public List<Pair<CharSequence, String>> getColumns() {
         return Collections.unmodifiableList(columns);
+    }
+
+    /**
+     * @return The alias of this table used when selecting
+     */
+    public String getAlias() {
+        return alias;
     }
 
     /**
@@ -268,7 +371,7 @@ public class SelectBuilder {
 
     @Override
     public SelectBuilder clone() {
-        SelectBuilder builder = create(db, table);
+        SelectBuilder builder = create(db, selectionTarget);
         for (Pair<CharSequence, String> column : columns) builder.select(column.getLeft(), column.getRight());
         builder.into(target);
         builder.where(condition);

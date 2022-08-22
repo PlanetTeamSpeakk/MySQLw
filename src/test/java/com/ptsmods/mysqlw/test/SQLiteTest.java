@@ -4,8 +4,7 @@ import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.collection.DbList;
 import com.ptsmods.mysqlw.collection.DbMap;
 import com.ptsmods.mysqlw.collection.DbSet;
-import com.ptsmods.mysqlw.query.QueryCondition;
-import com.ptsmods.mysqlw.query.QueryConditions;
+import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.table.ColumnType;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
@@ -14,20 +13,57 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("ALL")
 @TestMethodOrder(MethodOrderer.Alphanumeric.class)
 class SQLiteTest {
-
+    private static final UUID testId = UUID.nameUUIDFromBytes("MySQLw".getBytes(StandardCharsets.UTF_8));
     private static Database db = null;
 
     Database getDb() throws SQLException {
-        db = db == null ? (db = Database.connect(new File("sqlite.db"))) : db;
-        db.setLogging(false);
+        if (db == null) {
+            db = Database.connect(new File("sqlite.db"));
+            db.setLogging(false);
+
+            System.out.println(TablePreset.create("join_test_1")
+                    .putColumn("id", ColumnType.INT.struct()
+                            .configure(sup -> sup.apply(null))
+                            .setAutoIncrement()
+                            .setPrimary()
+                            .setNonNull())
+                    .putColumn("value1", ColumnType.TEXT.struct())
+                    .buildQuery(Database.RDBMS.SQLite));
+
+            TablePreset.create("join_test_1")
+                    .putColumn("id", ColumnType.INT.struct()
+                            .configure(sup -> sup.apply(null))
+                            .setAutoIncrement()
+                            .setPrimary()
+                            .setNonNull())
+                    .putColumn("value1", ColumnType.TEXT.struct())
+                    .create(db);
+
+            TablePreset.create("join_test_2")
+                    .putColumn("id", ColumnType.INT.struct()
+                            .configure(sup -> sup.apply(null))
+                            .setAutoIncrement()
+                            .setPrimary()
+                            .setNonNull())
+                    .putColumn("value2", ColumnType.UUID.struct())
+                    .create(db);
+
+            if (db.count("join_test_1", "*", null) == 0) {
+                db.insert("join_test_1", "value1", "Value from table 1");
+                db.insert("join_test_2", "value2", testId);
+            }
+        }
+
         return db;
     }
 
@@ -178,5 +214,33 @@ class SQLiteTest {
         TablePreset.create("indextest").putColumn("col", ColumnType.TEXT.struct()).create(getDb());
         assertDoesNotThrow(() -> getDb().createIndex("indextest", TableIndex.index("fulltexttest", "col", TableIndex.Type.INDEX)));
         getDb().drop("indextest");
+    }
+
+    @Test
+    void createTableWithIndices() throws SQLException {
+        Database db = getDb();
+        assertDoesNotThrow(() -> TablePreset.create("indicestest")
+                .putColumn("col1", ColumnType.TEXT.struct())
+                .putColumn("col2", ColumnType.TEXT.struct())
+                .addIndex(TableIndex.index("col1index", "col1", TableIndex.Type.FULLTEXT))
+                .addIndex(TableIndex.index("col2index", "col2", TableIndex.Type.INDEX))
+                .create(db)); // We're testing if TablePreset#create(Database) throws an error here, not if #getDb() does.
+        db.drop("indicestest");
+    }
+
+    @Test
+    void testSelectJoin() throws SQLException {
+        SelectResults res = getDb().selectBuilder("join_test_1")
+                .select("*")
+                .join(Join.builder()
+                        .type(JoinType.INNER)
+                        .table("join_test_2")
+                        .using("id"))
+                .where(QueryCondition.func(new QueryFunction("1"))) // Just to check if this causes any syntax errors
+                .execute();
+
+        assertEquals(1, res.size());
+        assertEquals("Value from table 1", res.get(0).getString("value1"));
+        assertEquals(testId, res.get(0).getUUID("value2"));
     }
 }

@@ -10,9 +10,7 @@ import com.ptsmods.mysqlw.procedure.stmt.loop.LeaveStmt;
 import com.ptsmods.mysqlw.procedure.stmt.misc.DeclareHandlerStmt;
 import com.ptsmods.mysqlw.procedure.stmt.query.InsertStmt;
 import com.ptsmods.mysqlw.procedure.stmt.vars.SetStmt;
-import com.ptsmods.mysqlw.query.QueryCondition;
-import com.ptsmods.mysqlw.query.QueryConditions;
-import com.ptsmods.mysqlw.query.QueryFunction;
+import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
 import com.ptsmods.mysqlw.table.*;
@@ -21,15 +19,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("ALL")
 @TestMethodOrder(MethodOrderer.MethodName.class)
 class MySQLTest {
-
+    private static final UUID testId = UUID.nameUUIDFromBytes("MySQLw".getBytes(StandardCharsets.UTF_8));
     private static Database db = null;
 
     Database getDb() throws SQLException {
@@ -43,11 +43,34 @@ class MySQLTest {
                     .putColumn("value", ColumnType.TEXT.struct())
                     .create(db);
 
+            TablePreset.create("join_test_1")
+                    .putColumn("id", ColumnType.INT.struct()
+                            .configure(sup -> sup.apply(null))
+                            .setAutoIncrement()
+                            .setPrimary()
+                            .setNonNull())
+                    .putColumn("value1", ColumnType.TEXT.struct())
+                    .create(db);
+
+            TablePreset.create("join_test_2")
+                    .putColumn("id", ColumnType.INT.struct()
+                            .configure(sup -> sup.apply(null))
+                            .setAutoIncrement()
+                            .setPrimary()
+                            .setNonNull())
+                    .putColumn("value2", ColumnType.UUID.struct())
+                    .create(db);
+
             if (db.count("testtable", "*", null) == 0)
                 db.insertBuilder("testtable", "keyword", "value")
                         .insert("key1", "val1")
                         .insert("key2", "val2")
                         .execute();
+
+            if (db.count("join_test_1", "*", null) == 0) {
+                db.insert("join_test_1", "value1", "Value from table 1");
+                db.insert("join_test_2", "value2", testId);
+            }
 
             db.setLogging(false);
         }
@@ -308,5 +331,21 @@ class MySQLTest {
     void testAsyncExceptionTrace() throws SQLException {
         // Should log the SQLException and the root trace leading to this method
         getDb().selectAsync("nonexistent", "*");
+    }
+
+    @Test
+    void testSelectJoin() throws SQLException {
+        SelectResults res = getDb().selectBuilder("join_test_1")
+                .select("*")
+                .join(Join.builder()
+                        .type(JoinType.INNER)
+                        .table("join_test_2")
+                        .using("id"))
+                .where(QueryCondition.func(new QueryFunction("1"))) // Just to check if this causes any syntax errors
+                .execute();
+
+        assertEquals(1, res.size());
+        assertEquals("Value from table 1", res.get(0).getString("value1"));
+        assertEquals(testId, res.get(0).getUUID("value2"));
     }
 }
