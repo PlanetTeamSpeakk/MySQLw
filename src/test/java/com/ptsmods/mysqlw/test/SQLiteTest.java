@@ -31,15 +31,6 @@ class SQLiteTest {
             db = Database.connect(new File("sqlite.db"));
             db.setLogging(false);
 
-            System.out.println(TablePreset.create("join_test_1")
-                    .putColumn("id", ColumnType.INT.struct()
-                            .configure(sup -> sup.apply(null))
-                            .setAutoIncrement()
-                            .setPrimary()
-                            .setNonNull())
-                    .putColumn("value1", ColumnType.TEXT.struct())
-                    .buildQuery(Database.RDBMS.SQLite));
-
             TablePreset.create("join_test_1")
                     .putColumn("id", ColumnType.INT.struct()
                             .configure(sup -> sup.apply(null))

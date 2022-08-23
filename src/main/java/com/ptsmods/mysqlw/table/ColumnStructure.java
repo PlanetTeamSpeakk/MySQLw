@@ -1,6 +1,8 @@
 package com.ptsmods.mysqlw.table;
 
 import com.ptsmods.mysqlw.Database;
+import com.ptsmods.mysqlw.table.configurable.Defaultable;
+import com.ptsmods.mysqlw.table.configurable.SimpleConfigurable;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Function;
@@ -10,11 +12,11 @@ import java.util.function.Supplier;
  * A structure used to describe a column.<br>
  * Used when making new tables.<br>
  * Acquire a {@link ColumnStructure} via {@link ColumnType#struct()} on any of the types in that class.
- * @param <S> The type of the supplier or functions used to get the typeString of the {@link ColumnType} used to create this structure.
+ * @param <C> The type of the configurable used to get the typeString of the {@link ColumnType} used to create this structure.
  */
-public class ColumnStructure<S> {
-
-    private final ColumnType<S> type;
+public class ColumnStructure<C> {
+    private final ColumnType<C> type;
+    private Function<C, String> configurator = null;
     private String typeString = null;
     private boolean unique = false;
     private boolean primary = false;
@@ -26,13 +28,11 @@ public class ColumnStructure<S> {
     private String extra = null;
     private boolean readOnly = false;
 
-    @SuppressWarnings("unchecked") // Any ColumnType that has a Supplier as supplier is of generic type String.
-    ColumnStructure(ColumnType<S> type) {
+    ColumnStructure(ColumnType<C> type) {
         this.type = type;
-        if (getSupplier() instanceof Supplier) typeString = ((Supplier<String>) getSupplier()).get();
     }
 
-    public ColumnType<S> getType() {
+    public ColumnType<C> getType() {
         return type;
     }
 
@@ -43,14 +43,16 @@ public class ColumnStructure<S> {
      * @param typeString The new typeString.
      * @return This structure
      */
-    public ColumnStructure<S> setTypeString(String typeString) {
+    public ColumnStructure<C> setTypeString(String typeString) {
         this.typeString = typeString;
         return this;
     }
 
     /**
      * @return The string set using {@link #configure(Function)}.
+     * Will return {@code null} unless {@link #setTypeString(String)} has been called.
      */
+    @Nullable
     public String getTypeString() {
         return typeString;
     }
@@ -63,28 +65,40 @@ public class ColumnStructure<S> {
      * @deprecated Has been renamed. Use {@link #configure(Function)} instead.
      */
     @Deprecated
-    public ColumnStructure<S> satiateSupplier(Function<S, String> configurator) {
+    public ColumnStructure<C> satiateSupplier(Function<C, String> configurator) {
         return configure(configurator);
     }
 
     /**
-     * Run and return the value of the supplier of the selected {@link ColumnType}.
-     * <p style="font-weight: bold; color: red;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
+     * Run and return the value of the supplier of the selected {@link ColumnType}.<br><br>
+     * This <b>must</b> be called if the {@link ColumnType} of this structure has no default values set for its supplier.<br>
+     * (This is the case for e.g. {@link ColumnType#ENUM ENUM}, {@link ColumnType#SET SET}, {@link ColumnType#CHAR CHAR},
+     * {@link ColumnType#VARCHAR VARCHAR})
      * @param configurator The function that gets the supplier and returns its value.
      * @return This structure
      */
-    public ColumnStructure<S> configure(Function<S, String> configurator) {
+    public ColumnStructure<C> configure(Function<C, String> configurator) {
         checkRO();
-        typeString = configurator.apply(getSupplier());
+        this.configurator = configurator;
         return this;
     }
 
     /**
      * @return The supplier that's used to configure this structure.
      * @see #configure(Function)
+     * @deprecated Suppliers are now type-specific, please use {@link #getTypeSpecificSupplier()} instead.
      */
-    public S getSupplier() {
+    @Deprecated
+    public C getSupplier() {
         return type.getSupplier();
+    }
+
+    /**
+     * @return The supplier that may return a different output based on the RDBMS it's used for.
+     * Used to configure this structure.
+     */
+    public Function<Database.RDBMS, C> getTypeSpecificSupplier() {
+        return type.getTypeSpecificSupplier();
     }
 
     /**
@@ -92,7 +106,7 @@ public class ColumnStructure<S> {
      * @return This structure
      * @see #setUnique(boolean)
      */
-    public ColumnStructure<S> setUnique() {
+    public ColumnStructure<C> setUnique() {
         return setUnique(true);
     }
 
@@ -100,7 +114,7 @@ public class ColumnStructure<S> {
      * @param unique Whether this column may only contain unique values.
      * @return This structure
      */
-    public ColumnStructure<S> setUnique(boolean unique) {
+    public ColumnStructure<C> setUnique(boolean unique) {
         checkRO();
         this.unique = unique;
         return this;
@@ -118,7 +132,7 @@ public class ColumnStructure<S> {
      * @return This structure
      * @see #setPrimary(boolean) 
      */
-    public ColumnStructure<S> setPrimary() {
+    public ColumnStructure<C> setPrimary() {
         return setPrimary(true);
     }
 
@@ -126,7 +140,7 @@ public class ColumnStructure<S> {
      * @param primary Whether this column is the PRIMARY KEY of its table.
      * @return This structure
      */
-    public ColumnStructure<S> setPrimary(boolean primary) {
+    public ColumnStructure<C> setPrimary(boolean primary) {
         checkRO();
         this.primary = primary;
         return this;
@@ -140,10 +154,11 @@ public class ColumnStructure<S> {
     }
 
     /**
-     * @param defValue The default value of this column, either {@link ColumnDefault#NULL NULL}, {@link ColumnDefault#CURRENT_TIMESTAMP CURRENT_TIMESTAMP} or a custom default value.
+     * @param defValue The default value of this column, either {@link ColumnDefault#NULL NULL},
+     * {@link ColumnDefault#CURRENT_TIMESTAMP CURRENT_TIMESTAMP} or a custom default value.
      * @return This structure
      */
-    public ColumnStructure<S> setDefault(@Nullable ColumnDefault defValue) {
+    public ColumnStructure<C> setDefault(@Nullable ColumnDefault defValue) {
         checkRO();
         if (defValue != null && defValue.getDef().equals(ColumnDefault.NULL.getDef()) && !nullAllowed)
             throw new IllegalArgumentException("Default value may not be NULL when null is not allowed.");
@@ -162,7 +177,7 @@ public class ColumnStructure<S> {
      * @param attributes The attributes of the type of this column.
      * @return This structure
      */
-    public ColumnStructure<S> setAttributes(@Nullable ColumnAttributes attributes) {
+    public ColumnStructure<C> setAttributes(@Nullable ColumnAttributes attributes) {
         checkRO();
         this.attributes = attributes;
         return this;
@@ -180,7 +195,7 @@ public class ColumnStructure<S> {
      * @return This structure
      * @see #setNullAllowed(boolean)
      */
-    public ColumnStructure<S> setNullable() {
+    public ColumnStructure<C> setNullable() {
         return setNullAllowed(true);
     }
 
@@ -189,7 +204,7 @@ public class ColumnStructure<S> {
      * @return This structure
      * @see #setNullAllowed(boolean)
      */
-    public ColumnStructure<S> setNonNull() {
+    public ColumnStructure<C> setNonNull() {
         return setNullAllowed(false);
     }
 
@@ -197,7 +212,7 @@ public class ColumnStructure<S> {
      * @param nullAllowed Whether this column can contain null values.
      * @return This structure
      */
-    public ColumnStructure<S> setNullAllowed(boolean nullAllowed) {
+    public ColumnStructure<C> setNullAllowed(boolean nullAllowed) {
         checkRO();
         this.nullAllowed = nullAllowed;
         return this;
@@ -215,7 +230,7 @@ public class ColumnStructure<S> {
      * @return This structure.
      * @see #setAutoIncrement(boolean) 
      */
-    public ColumnStructure<S> setAutoIncrement() {
+    public ColumnStructure<C> setAutoIncrement() {
         return setAutoIncrement(true);
     }
     
@@ -223,7 +238,7 @@ public class ColumnStructure<S> {
      * @param autoIncrement Whether the value of this column should be incremented by one for each row inserted.
      * @return This structure.
      */
-    public ColumnStructure<S> setAutoIncrement(boolean autoIncrement) {
+    public ColumnStructure<C> setAutoIncrement(boolean autoIncrement) {
         checkRO();
         this.autoIncrement = autoIncrement;
         return this;
@@ -240,7 +255,7 @@ public class ColumnStructure<S> {
      * @param comment The comment of this column. Used to describe what it's for.
      * @return This structure
      */
-    public ColumnStructure<S> setComment(@Nullable String comment) {
+    public ColumnStructure<C> setComment(@Nullable String comment) {
         checkRO();
         this.comment = comment;
         return this;
@@ -259,7 +274,7 @@ public class ColumnStructure<S> {
      *              cover this on <a href="https://github.com/PlanetTeamSpeakk/MySQLw">the GitHub page</a>.
      * @return This structure
      */
-    public ColumnStructure<S> setExtra(@Nullable String extra) {
+    public ColumnStructure<C> setExtra(@Nullable String extra) {
         checkRO();
         this.extra = extra;
         return this;
@@ -277,7 +292,7 @@ public class ColumnStructure<S> {
      * Used when describing a table.
      * @return This ColumnStructure
      */
-    public ColumnStructure<S> readOnly() {
+    public ColumnStructure<C> readOnly() {
         readOnly = true;
         return this;
     }
@@ -290,8 +305,8 @@ public class ColumnStructure<S> {
      * @return A shallow copy of this structure.
      */
     @Override
-    public ColumnStructure<S> clone() {
-        ColumnStructure<S> clone = new ColumnStructure<>(type);
+    public ColumnStructure<C> clone() {
+        ColumnStructure<C> clone = new ColumnStructure<>(type);
         clone.typeString = typeString;
         clone.unique = unique;
         clone.primary = primary;
@@ -310,7 +325,14 @@ public class ColumnStructure<S> {
     }
 
     public String toString(Database.RDBMS type) {
-        if (typeString == null) throw new IllegalStateException("Structure has not yet been configured.");
+        C configurable = getTypeSpecificSupplier().apply(type);
+        if (configurator == null && !(configurable instanceof SimpleConfigurable) &&
+                (!(configurable instanceof Defaultable<?, ?>) || !((Defaultable<?, ?>) configurable).hasDefault()))
+            throw new IllegalStateException("Structure has not yet been configured.");
+
+        String typeString = configurator != null ? configurator.apply(configurable) :
+                configurable instanceof SimpleConfigurable ? ((SimpleConfigurable) configurable).get() :
+                ((Defaultable<?, ?>) configurable).applyDefault();
 
         StringBuilder builder = new StringBuilder(typeString);
         if (attributes != null) builder.append(' ').append(attributes);

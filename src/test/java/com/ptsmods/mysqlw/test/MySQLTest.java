@@ -45,7 +45,6 @@ class MySQLTest {
 
             TablePreset.create("join_test_1")
                     .putColumn("id", ColumnType.INT.struct()
-                            .configure(sup -> sup.apply(null))
                             .setAutoIncrement()
                             .setPrimary()
                             .setNonNull())
@@ -54,7 +53,6 @@ class MySQLTest {
 
             TablePreset.create("join_test_2")
                     .putColumn("id", ColumnType.INT.struct()
-                            .configure(sup -> sup.apply(null))
                             .setAutoIncrement()
                             .setPrimary()
                             .setNonNull())
