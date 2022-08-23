@@ -58,6 +58,23 @@ public class ColumnStructure<C> {
     }
 
     /**
+     * Builds the type string for the given database type.
+     * @param type
+     * @return
+     */
+    public String buildTypeString(Database.RDBMS type) {
+        C configurable = getTypeSpecificSupplier().apply(type);
+        if (typeString == null && configurator == null && !(configurable instanceof SimpleConfigurable) &&
+                (!(configurable instanceof Defaultable<?, ?>) || !((Defaultable<?, ?>) configurable).hasDefault()))
+            throw new IllegalStateException("Structure has not yet been configured.");
+
+        return this.typeString != null ? this.typeString :
+                configurator != null ? configurator.apply(configurable) :
+                        configurable instanceof SimpleConfigurable ? ((SimpleConfigurable) configurable).get() :
+                                ((Defaultable<?, ?>) configurable).applyDefault();
+    }
+
+    /**
      * Run and return the value of the supplier of the selected {@link ColumnType}.
      * <p style="font-weight: bold; color: red;">THIS MUST BE RAN, UNLESS THE SUPPLIER IS AN INSTANCE OF {@link Supplier}.</p>
      * @param configurator The function that gets the supplier and returns its value.
@@ -325,16 +342,7 @@ public class ColumnStructure<C> {
     }
 
     public String toString(Database.RDBMS type) {
-        C configurable = getTypeSpecificSupplier().apply(type);
-        if (configurator == null && !(configurable instanceof SimpleConfigurable) &&
-                (!(configurable instanceof Defaultable<?, ?>) || !((Defaultable<?, ?>) configurable).hasDefault()))
-            throw new IllegalStateException("Structure has not yet been configured.");
-
-        String typeString = configurator != null ? configurator.apply(configurable) :
-                configurable instanceof SimpleConfigurable ? ((SimpleConfigurable) configurable).get() :
-                ((Defaultable<?, ?>) configurable).applyDefault();
-
-        StringBuilder builder = new StringBuilder(typeString);
+        StringBuilder builder = new StringBuilder(buildTypeString(type));
         if (attributes != null) builder.append(' ').append(attributes);
         if (primary) builder.append(" PRIMARY KEY");
         if (autoIncrement) builder.append(type == Database.RDBMS.SQLite ? " AUTOINCREMENT" : " AUTO_INCREMENT");

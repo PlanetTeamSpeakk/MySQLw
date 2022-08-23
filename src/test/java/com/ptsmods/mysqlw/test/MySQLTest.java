@@ -322,7 +322,7 @@ class MySQLTest {
                 "  CLOSE cur2;\n" +
                 "END;;";
 
-        assertEquals(block, target);
+        assertEquals(target, block);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.ptsmods.mysqlw.procedure;
 
+import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.procedure.stmt.DeclaringStmt;
 import com.ptsmods.mysqlw.procedure.stmt.RawStmt;
 import com.ptsmods.mysqlw.procedure.stmt.Statement;
@@ -20,18 +21,24 @@ import com.ptsmods.mysqlw.procedure.stmt.vars.SetStmt;
 import com.ptsmods.mysqlw.query.QueryCondition;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
 import com.ptsmods.mysqlw.table.ColumnStructure;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public final class BlockBuilder {
+    private final Database.RDBMS type;
     private final List<Statement> statements = new ArrayList<>();
 
-    private BlockBuilder() {}
-
     public static BlockBuilder builder() {
-        return new BlockBuilder();
+        return builder(Database.RDBMS.UNKNOWN);
+    }
+
+    public static BlockBuilder builder(Database.RDBMS type) {
+        return new BlockBuilder(type);
     }
 
     public List<Statement> getStatements() {
@@ -69,11 +76,11 @@ public final class BlockBuilder {
     }
 
     public BlockBuilder declare(String varName, ColumnStructure<?> type) {
-        return stmt(DeclareStmt.declare(varName, type));
+        return stmt(DeclareStmt.declare(this.type, varName, type));
     }
 
     public BlockBuilder declare(String[] varNames, ColumnStructure<?> type) {
-        return stmt(DeclareStmt.declare(varNames, type));
+        return stmt(DeclareStmt.declare(this.type, varNames, type));
     }
 
     public BlockBuilder set(String variable, Object value) {
