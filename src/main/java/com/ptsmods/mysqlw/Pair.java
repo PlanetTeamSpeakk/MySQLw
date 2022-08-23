@@ -1,8 +1,10 @@
 package com.ptsmods.mysqlw;
 
-import java.util.Objects;
+import lombok.Data;
 
+@Data
 public class Pair<L, R> {
+    private static final Pair<Object, Object> EMPTY = new Pair<>(null, null);
     private final L left;
     private final R right;
 
@@ -11,24 +13,16 @@ public class Pair<L, R> {
         this.right = right;
     }
 
+    @SuppressWarnings("unchecked") // It's an empty immutable object
+    public static <L, R> Pair<L, R> empty() {
+        return (Pair<L, R>) EMPTY;
+    }
+
     public L getLeft() {
         return left;
     }
 
     public R getRight() {
         return right;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Pair)) return false;
-        Pair<?, ?> pair = (Pair<?, ?>) o;
-        return Objects.equals(getLeft(), pair.getLeft()) && Objects.equals(getRight(), pair.getRight());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(getLeft(), getRight());
     }
 }
