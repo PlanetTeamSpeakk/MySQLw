@@ -12,3 +12,4 @@ com.ptsmods.mysqlw.procedure.stmt.vars
 com.ptsmods.mysqlw.query
 com.ptsmods.mysqlw.query.builder
 com.ptsmods.mysqlw.table
+com.ptsmods.mysqlw.table.configurable
