@@ -209,7 +209,7 @@ public class SelectResults extends AbstractList<SelectResults.SelectResultRow> {
         }
 
         public UUID getUUID(String column) {
-            return UUID.fromString(getString(column));
+            return get(column) == null ? null : UUID.fromString(getString(column));
         }
 
         public Number getNumber(String column) {
