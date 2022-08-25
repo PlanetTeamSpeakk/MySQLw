@@ -340,13 +340,7 @@ public class SelectBuilder {
      * @return The amount of rows counted
      */
     public long executeCount() {
-        ArrayList<Pair<CharSequence, String>> columnsCopy = new ArrayList<>(columns);
-        columns.clear();
-        columns.add(new Pair<>(new QueryFunction("COUNT(" + columnsCopy.stream()
-                .map(Pair::getLeft)
-                .map(Database::getAsString)
-                .collect(Collectors.joining(", ")) + ")"), "count"));
-        return execute().get(0).getLong("count");
+        return executeCountRaw().get(0).getLong("count");
     }
 
     /**
@@ -355,6 +349,42 @@ public class SelectBuilder {
      */
     public CompletableFuture<Long> executeCountAsync() {
         return db.runAsync(this::executeCount);
+    }
+
+    /**
+     * Counts the rows this select builder will select.
+     * @param type The type of the column this query will be grouped by.
+     * @return The amount of rows counted
+     */
+    public <T> Map<T, Long> executeCountMultiple(Class<T> type) {
+        if (groupBy == null || groupBy.getColumns().size() != 1)
+            throw new IllegalStateException("Count Multiple can only be used on a SelectBuilder that groups by one column.");
+
+        return executeCountRaw().stream()
+                .collect(Collectors.toMap(row -> row.get(groupBy.getColumns().get(0), type), row -> row.getLong("count")));
+    }
+
+    /**
+     * Counts the rows this select builder will select asynchronously.
+     * @param type The type of the column this query will be grouped by.
+     * @return A {@link CompletableFuture} containing the counted rows
+     */
+    public <T> CompletableFuture<Map<T, Long>> executeCountMultipleAsync(Class<T> type) {
+        return db.runAsync(() -> executeCountMultiple(type));
+    }
+
+    public SelectResults executeCountRaw() {
+        ArrayList<Pair<CharSequence, String>> columnsCopy = new ArrayList<>(columns);
+        columns.clear();
+        if (groupBy != null)
+            groupBy.getColumns().forEach(column -> columns.add(new Pair<>(column, null)));
+
+        columns.add(new Pair<>(new QueryFunction("COUNT(" + (columnsCopy.size() != 1 ? "*" : Database.getAsString(columnsCopy.get(0).getLeft())) + ")"), "count"));
+        return execute();
+    }
+
+    public CompletableFuture<SelectResults> executeCountRawAsync() {
+        return db.runAsync(this::executeCountRaw);
     }
 
     /**
