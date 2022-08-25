@@ -1,14 +1,14 @@
 package com.ptsmods.mysqlw;
 
+import com.ptsmods.mysqlw.procedure.BlockBuilder;
 import com.ptsmods.mysqlw.procedure.ProcedureParameter;
+import com.ptsmods.mysqlw.procedure.TriggeringEvent;
 import com.ptsmods.mysqlw.procedure.stmt.DelimiterStmt;
 import com.ptsmods.mysqlw.procedure.stmt.block.EndStmt;
 import com.ptsmods.mysqlw.procedure.stmt.misc.BeginStmt;
 import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
-import com.ptsmods.mysqlw.procedure.BlockBuilder;
-import com.ptsmods.mysqlw.procedure.TriggeringEvent;
 import com.ptsmods.mysqlw.table.ColumnStructure;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
@@ -16,7 +16,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
-import java.lang.reflect.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -140,7 +141,7 @@ public class Database {
             throw new SQLException("Could not find MySQL connector on classpath, is it loaded?", e);
         }
 
-        Database db = new Database(RDBMS.MySQL, DriverManager.getConnection(RDBMS.MySQL.formatConnectionUrl(host + ':' + port), username, password), name);
+        Database db = new Database(RDBMS.MySQL, RDBMS.MySQL.createConnection(host + ':' + port, username, password), name);
         db.execute("CREATE DATABASE IF NOT EXISTS " + name + ";"); // Create database if it does not yet exist.
         db.getConnection().setCatalog(name);
         return db;
@@ -158,7 +159,8 @@ public class Database {
         } catch (ClassNotFoundException e) {
             throw new SQLException("Could not find SQLite connector on classpath, is it loaded?", e);
         }
-        return new Database(RDBMS.SQLite, DriverManager.getConnection(RDBMS.SQLite.formatConnectionUrl(file.getAbsolutePath())), file.getName().substring(file.getName().lastIndexOf('.')));
+        return new Database(RDBMS.SQLite, RDBMS.SQLite.createConnection(file.getAbsolutePath()),
+                file.getName().substring(file.getName().lastIndexOf('.')));
     }
 
     /**
@@ -1664,22 +1666,24 @@ public class Database {
     public enum RDBMS {
         MySQL("com.mysql.cj.jdbc.Driver", "https://repo1.maven.org/maven2/mysql/mysql-connector-java/maven-metadata.xml",
                 "https://repo1.maven.org/maven2/mysql/mysql-connector-java/${VERSION}/mysql-connector-java-${VERSION}.jar",
-                "jdbc:mysql://%s/?autoReconnect=true",
+                "jdbc:mysql://%s/?autoReconnect=true", new Properties(),
                 name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name))),
         SQLite("org.sqlite.JDBC", "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/maven-metadata.xml",
                 "https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/${VERSION}/sqlite-jdbc-${VERSION}.jar",
-                "jdbc:sqlite:%s",
+                "jdbc:sqlite:%s", createSQLiteProperties(),
                 name -> Executors.newFixedThreadPool(1, r -> new Thread(r, "Database Thread - " + name))), // Preventing database lock, only one thread can use an SQLite database at a time.
-        UNKNOWN(null, null, null, null, name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name)));
+        UNKNOWN(null, null, null, null, new Properties(), name -> Executors.newCachedThreadPool(r -> new Thread(r, "Database Thread - " + name)));
 
         private final String initialLoadClass, metadataUrl, downloadUrl, connectionUrl;
+        private final Properties connectionProperties;
         private final Function<String, Executor> defaultExecutor;
 
-        RDBMS(String initialLoadClass, String metadataUrl, String downloadUrl, String connectionUrl, Function<String, Executor> defaultExecutor) {
+        RDBMS(String initialLoadClass, String metadataUrl, String downloadUrl, String connectionUrl, Properties connectionProperties, Function<String, Executor> defaultExecutor) {
             this.initialLoadClass = initialLoadClass;
             this.metadataUrl = metadataUrl;
             this.downloadUrl = downloadUrl;
             this.connectionUrl = connectionUrl;
+            this.connectionProperties = connectionProperties;
             this.defaultExecutor = defaultExecutor;
         }
 
@@ -1700,9 +1704,31 @@ public class Database {
             return connectionUrl == null ? "" : String.format(connectionUrl, host);
         }
 
+        public Properties getConnectionProperties() {
+            return connectionProperties;
+        }
+
+        public Connection createConnection(String host) throws SQLException {
+            return DriverManager.getConnection(formatConnectionUrl(host), getConnectionProperties());
+        }
+
+        public Connection createConnection(String host, String username, String password) throws SQLException {
+            Properties props = new Properties(getConnectionProperties());
+            if (username != null) props.put("user", username);
+            if (password != null) props.put("password", password);
+
+            return DriverManager.getConnection(formatConnectionUrl(host), props);
+        }
+
         public Executor getDefaultExecutor(String name) {
             return defaultExecutor.apply(name);
         }
-    }
 
+        // Required for Foreign Keys to actually do something rather than just be decoration.
+        private static Properties createSQLiteProperties() {
+            Properties properties = new Properties();
+            properties.setProperty("foreign_keys", "true");
+            return properties;
+        }
+    }
 }

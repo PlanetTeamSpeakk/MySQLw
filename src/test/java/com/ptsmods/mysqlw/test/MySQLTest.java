@@ -1,6 +1,7 @@
 package com.ptsmods.mysqlw.test;
 
 import com.ptsmods.mysqlw.Database;
+import com.ptsmods.mysqlw.SilentSQLException;
 import com.ptsmods.mysqlw.collection.DbList;
 import com.ptsmods.mysqlw.collection.DbMap;
 import com.ptsmods.mysqlw.collection.DbSet;
@@ -13,10 +14,7 @@ import com.ptsmods.mysqlw.procedure.stmt.vars.SetStmt;
 import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
-import com.ptsmods.mysqlw.table.ColumnDefault;
-import com.ptsmods.mysqlw.table.ColumnType;
-import com.ptsmods.mysqlw.table.TableIndex;
-import com.ptsmods.mysqlw.table.TablePreset;
+import com.ptsmods.mysqlw.table.*;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -446,5 +444,77 @@ class MySQLTest {
         assertDoesNotThrow(() -> db.dropColumn("column_test", "test2"));
 
         db.drop("column_test");
+    }
+
+    @Test
+    void testForeignKeys() throws SQLException {
+        Database db = getDb();
+
+        // Child must be dropped before parent as MySQL does not allow otherwise due to foreign keys.
+        db.drop("foreign_key_test_child"); // In case it failed last time.
+        db.drop("foreign_key_test_parent"); // In case it failed last time.
+        TablePreset.create("foreign_key_test_parent")
+                .putColumn("id", ColumnType.INT.struct()
+                        .setPrimary()
+                        .setAutoIncrement()
+                        .setNonNull())
+                .putColumn("foo", ColumnType.TEXT.struct())
+                .create(db);
+
+        TablePreset.create("foreign_key_test_child")
+                .putColumn("parent", ColumnType.INT.struct()
+                        .setNonNull())
+                .putColumn("foo", ColumnType.TEXT.struct())
+                .addForeignKey(ForeignKey.builder()
+                        .column("parent")
+                        .referenceTable("foreign_key_test_parent")
+                        .referenceColumn("id")
+                        .onDelete(ForeignKey.Action.CASCADE)
+                        .onUpdate(ForeignKey.Action.CASCADE))
+                .create(db);
+
+        db.insertBuilder("foreign_key_test_parent", "id", "foo")
+                .insert(1, "bar")
+                .insert(2, "baz")
+                .execute();
+
+        db.insertBuilder("foreign_key_test_child", "parent", "foo")
+                .insert(1, "foobar")
+                .insert(1, "barfoo")
+                .insert(1, "barbaz")
+                .insert(2, "barfoo")
+                .insert(2, "barbaz")
+                .execute();
+
+        assertEquals(3, db.count("foreign_key_test_child", "*", QueryCondition.equals("parent", 1)));
+        assertEquals(2, db.count("foreign_key_test_child", "*", QueryCondition.equals("parent", 2)));
+
+        // Update the id of the parent with id 1,
+        db.update("foreign_key_test_parent", "id", 3, QueryCondition.equals("id", 1));
+        assertEquals(3, db.count("foreign_key_test_child", "*", QueryCondition.equals("parent", 3)));
+
+        // Delete the parent with id 2, should also remove all children rows with parent id 2
+        db.delete("foreign_key_test_parent", QueryCondition.equals("id", 2));
+        assertEquals(0, db.count("foreign_key_test_child", "*", QueryCondition.equals("parent", 2)));
+
+        db.drop("foreign_key_test_child");
+        db.drop("foreign_key_test_parent");
+    }
+
+    @Test
+    void testChecks() throws SQLException {
+        Database db = getDb();
+
+        db.drop("checks_test");
+        TablePreset.create("checks_test")
+                .putColumn("value", ColumnType.INT.struct())
+                .addCheck(QueryCondition.lessEqual("value", 10))
+                .create(db);
+
+        assertDoesNotThrow(() -> db.insert("checks_test", "value", 5));
+        assertDoesNotThrow(() -> db.insert("checks_test", "value", 10));
+        assertThrows(SilentSQLException.class, () -> db.insert("checks_test", "value", 15));
+
+        db.drop("checks_test");
     }
 }
