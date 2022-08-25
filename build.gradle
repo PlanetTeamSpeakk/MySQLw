@@ -46,7 +46,7 @@ subprojects {
 
     dependencies {
         compileOnly project(":")
-        testCompileOnly project(":")
+        testImplementation project(":")
     }
 }
 
