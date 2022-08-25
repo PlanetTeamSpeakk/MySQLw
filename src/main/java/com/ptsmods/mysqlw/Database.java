@@ -1168,7 +1168,7 @@ public class Database {
      * @see #dropAsync(String)
      */
     public void drop(String table) {
-        execute("DROP TABLE " + engrave(table) + ";");
+        execute("DROP TABLE IF EXISTS " + engrave(table) + ";");
     }
 
     /**
