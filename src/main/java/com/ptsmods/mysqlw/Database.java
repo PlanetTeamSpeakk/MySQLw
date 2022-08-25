@@ -9,6 +9,7 @@ import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
 import com.ptsmods.mysqlw.procedure.BlockBuilder;
 import com.ptsmods.mysqlw.procedure.TriggeringEvent;
+import com.ptsmods.mysqlw.table.ColumnStructure;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
 import org.jetbrains.annotations.NotNull;
@@ -338,12 +339,24 @@ public class Database {
      * @param run The runnable to run.
      * @return A {@link} CompletableFuture.
      */
-    private CompletableFuture<Void> runAsync(Runnable run) {
+    public CompletableFuture<Void> runAsync(Runnable run) {
         Exception rootTrace = new Exception("Trace to root of async call");
         return CompletableFuture.runAsync(run, getExecutor()).exceptionally(t -> {
             errorHandler.apply(new AsyncSQLException(t, rootTrace));
             return null;
         });
+    }
+
+    /**
+     * Counts columns in a table.
+     * @param table The table to count them in.
+     * @param what What columns to count.
+     * @return The amount of results found or {@code -1} if an error occurred.
+     * @see #count(String, String, QueryCondition)
+     * @see #countAsync(String, String)
+     */
+    public int count(String table, String what) throws SilentSQLException {
+        return count(table, what, null);
     }
 
     /**
@@ -365,6 +378,17 @@ public class Database {
             logOrThrow("Error while counting.", throwables);
             return -1;
         }
+    }
+
+    /**
+     * Counts columns in a table asynchronously.
+     * @param table The table to count them in.
+     * @param what What columns to count.
+     * @return The amount of results found or {@code -1} if an error occurred.
+     * @see #count(String, String)
+     */
+    public CompletableFuture<Integer> countAsync(String table, String what) {
+        return runAsync(() -> count(table, what));
     }
 
     /**
@@ -1330,6 +1354,74 @@ public class Database {
      */
     public CompletableFuture<Void> createIndexAsync(String table, TableIndex index) {
         return runAsync(() -> createIndex(table, index));
+    }
+
+    /**
+     * Adds a new column to the given table.
+     * @param table The table to add the column to
+     * @param name The name of the new column
+     * @param structure The structure of the new column
+     * @param after The column after which to add this column or null to add it to the beginning.
+     * @see #addColumnAsync(String, String, ColumnStructure, String)
+     */
+    public void addColumn(String table, String name, ColumnStructure<?> structure, @Nullable String after) {
+        execute("ALTER TABLE " + engrave(table) + " ADD COLUMN " +
+                engrave(name) + " " + structure.buildTypeString(getType()) + (after == null ? " FIRST" : " AFTER " + engrave(after)));
+    }
+
+    /**
+     * Adds a new column to the given table asynchronously.
+     * @param table The table to add the column to
+     * @param name The name of the new column
+     * @param structure The structure of the new column
+     * @param after The column after which to add this column or null to add it to the beginning.
+     * @see #addColumn(String, String, ColumnStructure, String)
+     */
+    public CompletableFuture<Void> addColumnAsync(String table, String name, ColumnStructure<?> structure, @Nullable String after) {
+        return runAsync(() -> addColumn(table, name, structure, after));
+    }
+
+    /**
+     * Modifies a column's definition.
+     * @param table The table to modify the column on
+     * @param name The name of the column to modify
+     * @param structure The new structure of the column
+     * @see #modifyColumnAsync(String, String, ColumnStructure)
+     */
+    public void modifyColumn(String table, String name, ColumnStructure<?> structure) {
+        execute("ALTER TABLE " + engrave(table) + " MODIFY COLUMN " +
+                engrave(name) + " " + structure.buildTypeString(getType()));
+    }
+
+    /**
+     * Modifies a column's definition asynchronously.
+     * @param table The table to modify the column on
+     * @param name The name of the column to modify
+     * @param structure The new structure of the column
+     * @see #modifyColumn(String, String, ColumnStructure)
+     */
+    public CompletableFuture<Void> modifyColumnAsync(String table, String name, ColumnStructure<?> structure) {
+        return runAsync(() -> modifyColumn(table, name, structure));
+    }
+
+    /**
+     * Drops a column.
+     * @param table The table to drop the column from
+     * @param column The column to drop
+     * @see #dropColumnAsync(String, String)
+     */
+    public void dropColumn(String table, String column) {
+        execute("ALTER TABLE " + engrave(table) + " DROP COLUMN " + engrave(column));
+    }
+
+    /**
+     * Drops a column asynchronously
+     * @param table The table to drop the column from
+     * @param column The column to drop
+     * @see #dropColumn(String, String)
+     */
+    public CompletableFuture<Void> dropColumnAsync(String table, String column) {
+        return runAsync(() -> dropColumn(table, column));
     }
 
     /**
