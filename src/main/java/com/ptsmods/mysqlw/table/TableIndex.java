@@ -1,5 +1,7 @@
 package com.ptsmods.mysqlw.table;
 
+import com.ptsmods.mysqlw.Database;
+
 /**
  * Table indices, used to speed up queries.
  */
@@ -68,7 +70,7 @@ public class TableIndex {
         SPATIAL;
 
         public String toString(String name, String column, boolean includeColumn) {
-            return (this == INDEX ? "" : name() + " ") + "INDEX " + (name == null ? "" : "`" + name + "` ") + (includeColumn ? "(`" + column + "`)" : "");
+            return (this == INDEX ? "" : name() + " ") + "INDEX " + (name == null ? "" : Database.engrave(name) + " ") + (includeColumn ? "(`" + column + "`)" : "");
         }
     }
 }

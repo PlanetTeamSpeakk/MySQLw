@@ -1,5 +1,7 @@
 package com.ptsmods.mysqlw.query;
 
+import com.ptsmods.mysqlw.Database;
+
 /**
  * The order in which to return results.
  */
@@ -48,7 +50,7 @@ public class QueryOrder {
 
     @Override
     public String toString() {
-        return "`" + column + "` " + direction.name();
+        return Database.engrave(column) + " " + direction.name();
     }
 
     public enum OrderDirection {

@@ -32,7 +32,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` = " + Database.getAsString(value);
+                return Database.engrave(key) + " = " + Database.getAsString(value);
             }
         });
     }
@@ -60,7 +60,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` <> " + Database.getAsString(value);
+                return Database.engrave(key) + " <> " + Database.getAsString(value);
             }
         });
     }
@@ -88,7 +88,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` > " + Database.getAsString(value);
+                return Database.engrave(key) + " > " + Database.getAsString(value);
             }
         });
     }
@@ -116,7 +116,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` >= " + Database.getAsString(value);
+                return Database.engrave(key) + " >= " + Database.getAsString(value);
             }
         });
     }
@@ -144,7 +144,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` < " + Database.getAsString(value);
+                return Database.engrave(key) + " < " + Database.getAsString(value);
             }
         });
     }
@@ -172,7 +172,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` <= " + Database.getAsString(value);
+                return Database.engrave(key) + " <= " + Database.getAsString(value);
             }
         });
     }
@@ -200,7 +200,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` LIKE " + Database.enquote(value);
+                return Database.engrave(key) + " LIKE " + Database.enquote(value);
             }
         });
     }
@@ -214,7 +214,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return "`" + key + "` MATCH " + Database.enquote(value);
+                return Database.engrave(key) + " MATCH " + Database.enquote(value);
             }
         });
     }
@@ -228,7 +228,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                StringBuilder s = new StringBuilder("`").append(key).append("` IN (");
+                StringBuilder s = new StringBuilder().append(Database.engrave(key)).append(" IN (");
                 for (Object o : objects)
                     s.append(Database.getAsString(o)).append(", ");
                 return s.delete(s.length()-2, s.length()).append(")").toString();
@@ -245,7 +245,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                StringBuilder s = new StringBuilder("`").append(key).append("` NOT IN (");
+                StringBuilder s = new StringBuilder().append(Database.engrave(key)).append(" NOT IN (");
                 for (Object o : objects)
                     s.append(Database.getAsString(o)).append(", ");
                 return s.delete(s.length()-2, s.length()).append(")").toString();
