@@ -21,7 +21,8 @@ public class ColumnType<S> {
      * Basically the same as a {@link #TINYINT}, but with a length of 1.<br>
      * Gets treated as a boolean by MySQL and the MySQL connector. (Possibly also SQLite, but this is untested)
      */
-    public static final ColumnType<SimpleConfigurable> BOOLEAN = new ColumnType<>("BOOLEAN", () -> parseLengthType("TINYINT", 1));
+    public static final ColumnType<SimpleConfigurable> BOOLEAN = new ColumnType<>("BOOLEAN", type ->
+            () -> type == Database.RDBMS.SQLite ? "BOOLEAN" : parseLengthType("TINYINT", 1), true);
     /**
      * Tiny integer type (byte)<br>
      * <b>SIGNED:</b> -128 to 127<br>
@@ -107,28 +108,28 @@ public class ColumnType<S> {
     /**
      * Datetime type<br>
      * A combination of {@link #DATE} and {@link #TIME}.
-     * @deprecated Java by default has classes for {@link java.sql.Date Date}, {@link java.sql.Timestamp Timestamp} and {@link java.sql.Time Time}, but not for {@code datetime}.
-     *             So it is recommended to use any of those, especially {@link #TIMESTAMP}, instead.
      */
-    @Deprecated
     public static final ColumnType<SimpleConfigurable> DATETIME = new ColumnType<>("DATETIME", () -> "DATETIME");
     /**
      * Timestamp type<br>
      * Stored as an integer of seconds since epoch.<br>
      * Contains a date and time.<br>
      * Supported range is 1970-01-01 00:00:01 UTC to 2038-01-09 03:14:07 UTC.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> TIMESTAMP = new ColumnType<>("TIMESTAMP", () -> "TIMESTAMP");
     /**
      * Time type<br>
      * Holds just a time in the format hh:mm:ss.<br>
      * Supported range is -838:59:59 to 838:59:59.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> TIME = new ColumnType<>("TIME", () -> "TIME");
     /**
      * Year type<br>
      * A year stored with either four (default) or two digits.<br>
      * YEAR(2) is deprecated and no longer supported, so this library does not support it either.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> YEAR = new ColumnType<>("YEAR", () -> "YEAR");
 
@@ -148,6 +149,7 @@ public class ColumnType<S> {
     /**
      * Tiny text type<br>
      * Can store up to 255 characters.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> TINYTEXT = new ColumnType<>("TINYTEXT", () -> "TINYTEXT");
     /**
@@ -158,24 +160,28 @@ public class ColumnType<S> {
     /**
      * Medium text type<br>
      * Can store up to 16,777,215 characters.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> MEDIUMTEXT = new ColumnType<>("MEDIUMTEXT", () -> "MEDIUMTEXT");
     /**
      * Long text type<br>
      * Can store up to 4,294,967,295 characters.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> LONGTEXT = new ColumnType<>("LONGTEXT", () -> "LONGTEXT");
 
     /**
      * Same as {@link #CHAR} except Strings are stored as binary byte strings rather than character strings.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<DynamicConfigurable<Integer>> BINARY = new ColumnType<>("BINARY",
-            ((DynamicConfigurable<Integer>) (length -> parseLengthType("BINARY", length))).withDefault(null));
+            length -> parseLengthType("BINARY", length));
     /**
      * Same as {@link #VARCHAR} except Strings are stored as binary byte strings rather than character strings.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<DynamicConfigurable<Integer>> VARBINARY = new ColumnType<>("VARBINARY",
-            ((DynamicConfigurable<Integer>) (length -> parseLengthType("VARBINARY", length))).withDefault(null));
+            length -> parseLengthType("VARBINARY", length));
     /**
      * Char text type with fixed length of 36 characters, used to store {@link java.util.UUID UUID}s.
      */
@@ -187,6 +193,7 @@ public class ColumnType<S> {
      * Tiny Binary Large OBject<br>
      * <b>Max size:</b> 255 bytes<br>
      * Used for storing various types of files, s.a. pictures and audio or even video.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> TINYBLOB = new ColumnType<>("TINYBLOB", () -> "TINYBLOB");
     /**
@@ -199,12 +206,14 @@ public class ColumnType<S> {
      * Medium Binary Large OBject<br>
      * <b>Max size:</b> 16,777,215 bytes<br>
      * Used for storing various types of files, s.a. pictures and audio or even video.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> MEDIUMBLOB = new ColumnType<>("MEDIUMBLOB", () -> "MEDIUMBLOB");
     /**
      * Long Binary Large OBject<br>
      * <b>Max size:</b> 4,294,967,295 bytes<br>
      * Used for storing various types of files, s.a. pictures and audio or even video.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> LONGBLOB = new ColumnType<>("LONGBLOB", () -> "LONGBLOB");
 
@@ -214,12 +223,14 @@ public class ColumnType<S> {
      * Enum type<br>
      * Can only hold the values given when the table was created (can be altered), the index corresponding with a value or the error value (empty string or 0).<br>
      * Can hold up to 65,635 different values.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<DynamicNConfigurable<String>> ENUM = new ColumnType<>("ENUM", values -> parseSetOrEnum("ENUM", values));
     /**
      * Set type<br>
      * Same as enum, but can only hold up to 64 different values, does not have an error type (so it can hold empty strings) and cannot hold indexes corresponding with a value.<br>
      * So it can only hold the values given when initialised.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<DynamicNConfigurable<String>> SET = new ColumnType<>("SET", values -> parseSetOrEnum("SET", values));
 
@@ -231,27 +242,32 @@ public class ColumnType<S> {
     /**
      * Geometry type<br>
      * Can store a geometry of any type.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> GEOMETRY = new ColumnType<>("GEOMETRY", () -> "GEOMETRY");
     /**
      * Point type<br>
      * Holds a coordinate with an X and Y value (and more dimensions of you choose to).
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> POINT = new ColumnType<>("POINT", () -> "POINT");
     /**
      * Linestring type<br>
      * A curve with linear interpolation between points.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> LINESTRING = new ColumnType<>("LINESTRING", () -> "LINESTRING");
     /**
      * Polygon type<br>
      * You know what a polygon is, right?<br>
      * If not, it's basically any 2D shape with straight lines.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> POLYGON = new ColumnType<>("POLYGON", () -> "POLYGON");
     /**
      * Multipoint type<br>
      * A collection of points
+     * <br><b>This type is not supported by SQLite</b>
      * @see #POINT
      */
     public static final ColumnType<SimpleConfigurable> MULTIPOINT = new ColumnType<>("MULTIPOINT", () -> "MULTIPOINT");
@@ -264,12 +280,14 @@ public class ColumnType<S> {
     /**
      * Multipolygon type<br>
      * A collection of polygons
+     * <br><b>This type is not supported by SQLite</b>
      * @see #POLYGON
      */
     public static final ColumnType<SimpleConfigurable> MULTIPOLYGON = new ColumnType<>("MULTIPOLYGON", () -> "MULTIPOLYGON");
     /**
      * Geometrycollection type<br>
      * A collection of geometry objects of any type
+     * <br><b>This type is not supported by SQLite</b>
      * @see #GEOMETRY
      */
     public static final ColumnType<SimpleConfigurable> GEOMETRYCOLLECTION = new ColumnType<>("GEOMETRYCOLLECTION", () -> "GEOMETRYCOLLECTION");
@@ -279,6 +297,7 @@ public class ColumnType<S> {
     /**
      * JSON type<br>
      * Just a string, but it's supposed to resemble JSON data, and you can do cool tricks when selecting using JSON_CONTAINS.
+     * <br><b>This type is not supported by SQLite</b>
      */
     public static final ColumnType<SimpleConfigurable> JSON = new ColumnType<>("JSON", () -> "JSON");
 
