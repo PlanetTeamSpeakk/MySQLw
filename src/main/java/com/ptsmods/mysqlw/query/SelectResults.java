@@ -277,7 +277,9 @@ public class SelectResults extends AbstractList<SelectResults.SelectResultRow> {
          * @return The object in this column.
          */
         public <T> T get(String column, Class<T> type) {
-            return Database.getFromString(getString(column), type);
+            Object val = get(column);
+
+            return val == null ? null : type.isInstance(val) ? type.cast(val) : Database.getFromString(getString(column), type);
         }
 
         @NotNull
