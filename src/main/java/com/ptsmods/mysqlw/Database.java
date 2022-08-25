@@ -1463,7 +1463,8 @@ public class Database {
     }
 
     /**
-     * Gets a {@link CharSequence} as a String, in case of a {@link QueryFunction} this returns its function, in case of an asterisk this returns an asterisk, in all other cases this returns the given {@link CharSequence} but surrounded by graves.
+     * Gets a {@link CharSequence} as a String, in case of a {@link QueryFunction} this returns its function,
+     * in case of an asterisk this returns an asterisk, in all other cases this returns the given {@link CharSequence} but surrounded by graves.
      * @param seq The sequence to get as String.
      * @return A String, either a {@link QueryFunction}'s function or the given {@link CharSequence} surrounded by graves.
      */
