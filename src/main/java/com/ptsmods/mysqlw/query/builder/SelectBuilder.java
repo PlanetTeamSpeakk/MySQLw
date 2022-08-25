@@ -295,7 +295,7 @@ public class SelectBuilder {
                         .map(Join::toString)
                         .collect(Collectors.joining(" ")))
                 .append(condition == null ? "" : " WHERE " + condition)
-                .append(groupBy == null ? "" : " " + groupBy)
+                .append(groupBy == null ? "" : " " + groupBy.toString(db == null ? Database.RDBMS.UNKNOWN : db.getType()))
                 .append(order == null ? "" : " ORDER BY " + order)
                 .append(limit == null ? "" : " " + limit);
 
