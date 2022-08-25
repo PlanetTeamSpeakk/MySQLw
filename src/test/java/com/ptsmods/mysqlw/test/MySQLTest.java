@@ -13,15 +13,22 @@ import com.ptsmods.mysqlw.procedure.stmt.vars.SetStmt;
 import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
-import com.ptsmods.mysqlw.table.*;
+import com.ptsmods.mysqlw.table.ColumnDefault;
+import com.ptsmods.mysqlw.table.ColumnType;
+import com.ptsmods.mysqlw.table.TableIndex;
+import com.ptsmods.mysqlw.table.TablePreset;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.sql.Date;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.Year;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -345,5 +352,99 @@ class MySQLTest {
         assertEquals(1, res.size());
         assertEquals("Value from table 1", res.get(0).getString("value1"));
         assertEquals(testId, res.get(0).getUUID("value2"));
+    }
+
+    @Test
+    void testGroupBy() throws SQLException {
+        Database db = getDb();
+
+        db.drop("groupby_test"); // In case it failed last time.
+        TablePreset.create("groupby_test")
+                .putColumn("id", ColumnType.INT.struct()
+                        .setPrimary()
+                        .setAutoIncrement()
+                        .setNonNull())
+                .putColumn("year", ColumnType.YEAR.struct()
+                        .setNonNull())
+                .putColumn("month", ColumnType.ENUM.struct()
+                        .configure(sup -> sup.apply(new String[] {
+                                "January", "February", "March", "April", "May", "June",
+                                "July", "August", "September", "October", "November", "December"}))
+                        .setNonNull())
+                .putColumn("profit", ColumnType.INT.struct()
+                        .setNonNull())
+                .addIndex(TableIndex.index("year", TableIndex.Type.INDEX))
+                .create(db);
+
+        db.insertBuilder("groupby_test", "year", "month", "profit")
+                .insert(Year.of(2021), "October", 2150)
+                .insert(Year.of(2021), "November", 2100)
+                .insert(Year.of(2021), "December", 2250)
+                .insert(Year.of(2022), "January", 2300)
+                .insert(Year.of(2022), "February", 2450)
+                .insert(Year.of(2022), "March", 2200)
+                .insert(Year.of(2022), "April", 2550)
+                .execute();
+
+        Map<Date, Long> count = db.selectBuilder("groupby_test")
+                .select("year", "month", "profit")
+                .groupBy("year")
+                .executeCountMultiple(Date.class);
+        assertEquals(3, count.get(Date.valueOf(LocalDate.of(2021, 1, 1))));
+        assertEquals(4, count.get(Date.valueOf(LocalDate.of(2022, 1, 1))));
+
+        SelectResults profit = db.selectBuilder("groupby_test")
+                .select("year")
+                .select(new QueryFunction("SUM(profit)"), "profit")
+                .groupBy("year")
+                .execute();
+
+        assertEquals(2150 + 2100 + 2250, profit.get(0).getInt("profit"));
+        assertEquals(2300 + 2450 + 2200 + 2550, profit.get(1).getInt("profit"));
+
+        db.drop("groupby_test");
+    }
+
+    @Test
+    void testSelectBuilderCount() throws SQLException {
+        Database db = getDb();
+
+        assertEquals(2, db.selectBuilder("testtable")
+                .select("*")
+                .executeCount());
+    }
+
+    @Test
+    void testDeleteLimit() throws SQLException {
+        Database db = getDb();
+
+        db.drop("delete_limit_test"); // In case it failed last time.
+        TablePreset.create("delete_limit_test")
+                .putColumn("col", ColumnType.TEXT.struct())
+                .create(db);
+
+        for (int i = 0; i < 3; i++) db.insert("delete_limit_test", "col", 5);
+
+        assertEquals(3, db.count("delete_limit_test", "*"));
+        db.delete("delete_limit_test", QueryCondition.equals("col", 5), 1);
+        assertEquals(2, db.count("delete_limit_test", "*"));
+
+        db.drop("delete_limit_test");
+    }
+
+    @Test
+    void testAddModifyDropColumn() throws SQLException {
+        Database db = getDb();
+
+        db.drop("column_test"); // In case it failed last time.
+        TablePreset.create("column_test")
+                .putColumn("test", ColumnType.TEXT.struct())
+                .create(db);
+
+        assertDoesNotThrow(() -> db.addColumn("column_test", "test2", ColumnType.INT.struct(), "test"));
+        assertDoesNotThrow(() -> db.modifyColumn("column_test", "test2", ColumnType.BIGINT.struct()));
+        assertDoesNotThrow(() -> db.dropColumn("column_test", "test2"));
+
+        db.drop("column_test");
     }
 }

@@ -15,7 +15,9 @@ import org.junit.jupiter.api.TestMethodOrder;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.time.Year;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -233,5 +235,77 @@ class SQLiteTest {
         assertEquals(1, res.size());
         assertEquals("Value from table 1", res.get(0).getString("value1"));
         assertEquals(testId, res.get(0).getUUID("value2"));
+    }
+
+    @Test
+    void testGroupBy() throws SQLException {
+        Database db = getDb();
+
+        db.drop("groupby_test"); // In case it failed last time.
+        TablePreset.create("groupby_test")
+                .putColumn("id", ColumnType.INT.struct()
+                        .setPrimary()
+                        .setAutoIncrement()
+                        .setNonNull())
+                .putColumn("year", ColumnType.YEAR.struct()
+                        .setNonNull())
+                .putColumn("month", ColumnType.INT.struct()
+                        .setNonNull())
+                .putColumn("profit", ColumnType.INT.struct()
+                        .setNonNull())
+                .addIndex(TableIndex.index("year", TableIndex.Type.INDEX))
+                .create(db);
+
+        db.insertBuilder("groupby_test", "year", "month", "profit")
+                .insert(Year.of(2021), 10, 2150)
+                .insert(Year.of(2021), 11, 2100)
+                .insert(Year.of(2021), 12, 2250)
+                .insert(Year.of(2022), 1, 2300)
+                .insert(Year.of(2022), 2, 2450)
+                .insert(Year.of(2022), 3, 2200)
+                .insert(Year.of(2022), 4, 2550)
+                .execute();
+
+        Map<Integer, Long> count = db.selectBuilder("groupby_test")
+                .select("year", "month", "profit")
+                .groupBy("year")
+                .executeCountMultiple(Integer.class);
+        assertEquals(3, count.get(2021));
+        assertEquals(4, count.get(2022));
+
+        SelectResults profit = db.selectBuilder("groupby_test")
+                .select("year")
+                .select(new QueryFunction("SUM(profit)"), "profit")
+                .groupBy("year")
+                .execute();
+
+        assertEquals(2150 + 2100 + 2250, profit.get(0).getInt("profit"));
+        assertEquals(2300 + 2450 + 2200 + 2550, profit.get(1).getInt("profit"));
+
+        db.drop("groupby_test");
+    }
+
+    @Test
+    void testSelectBuilderCount() throws SQLException {
+        Database db = getDb();
+
+        assertEquals(2, db.selectBuilder("testtable")
+                .select("*")
+                .executeCount());
+    }
+
+    @Test
+    void testAddDropColumn() throws SQLException {
+        Database db = getDb();
+
+        db.drop("column_test"); // In case it failed last time.
+        TablePreset.create("column_test")
+                .putColumn("test", ColumnType.TEXT.struct())
+                .create(db);
+
+        assertDoesNotThrow(() -> db.addColumn("column_test", "test2", ColumnType.INT.struct(), "test"));
+        assertDoesNotThrow(() -> db.dropColumn("column_test", "test2"));
+
+        db.drop("column_test");
     }
 }
