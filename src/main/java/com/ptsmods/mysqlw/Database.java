@@ -402,26 +402,58 @@ public class Database {
 
     /**
      * Deletes rows matching the given condition or all when no condition given.
-     * @param table The table to delete rows from.
-     * @param condition The condition rows must meet in order to be deleted.
-     * @return The amount of rows affected.
+     * @param table The table to delete rows from
+     * @param condition The condition rows must meet in order to be deleted
+     * @return The amount of rows affected
      * @see #truncate(String)
      * @see #deleteAsync(String, QueryCondition)
      */
     public int delete(String table, QueryCondition condition) {
-        return executeUpdate("DELETE FROM " + engrave(table) + (condition == null ? "" : " WHERE " + condition) + ";");
+        return delete(table, condition, -1);
+    }
+
+    /**
+     * Deletes rows matching the given condition or all when no condition given.
+     * @param table The table to delete rows from
+     * @param condition The condition rows must meet in order to be deleted
+     * @param limit The maximum amount of rows to delete
+     * @return The amount of rows affected.
+     * @see #truncate(String)
+     * @see #deleteAsync(String, QueryCondition)
+     * @throws IllegalStateException When limit > 0 and type is {@link RDBMS#SQLite SQLite}
+     * as SQLite does not support delete limits.
+     */
+    public int delete(String table, QueryCondition condition, int limit) {
+        if (limit > 0 && getType() == RDBMS.SQLite)
+            throw new IllegalStateException("SQLite does not have native support for delete limits.");
+
+        return executeUpdate("DELETE FROM " + engrave(table) +
+                (condition == null ? "" : " WHERE " + condition) + (limit > 0 ? " LIMIT " + limit : "") + ";");
     }
 
     /**
      * Deletes rows matching the given condition or all when no condition given asynchronously.
-     * @param table The table to delete rows from.
-     * @param condition The condition rows must meet in order to be deleted.
+     * @param table The table to delete rows from
+     * @param condition The condition rows must meet in order to be deleted
      * @return The amount of rows affected.
      * @see #truncate(String)
      * @see #delete(String, QueryCondition)
      */
     public CompletableFuture<Integer> deleteAsync(String table, QueryCondition condition) {
-        return runAsync(() -> delete(table, condition));
+        return deleteAsync(table, condition, -1);
+    }
+
+    /**
+     * Deletes rows matching the given condition or all when no condition given asynchronously.
+     * @param table The table to delete rows from
+     * @param condition The condition rows must meet in order to be deleted
+     * @param limit The maximum amount of rows to delete
+     * @return The amount of rows affected.
+     * @see #truncate(String)
+     * @see #delete(String, QueryCondition)
+     */
+    public CompletableFuture<Integer> deleteAsync(String table, QueryCondition condition, int limit) {
+        return runAsync(() -> delete(table, condition, limit));
     }
 
 
