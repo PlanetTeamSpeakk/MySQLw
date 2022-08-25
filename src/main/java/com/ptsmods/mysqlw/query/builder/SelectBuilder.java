@@ -17,6 +17,7 @@ public class SelectBuilder {
     private final Set<Join> joins = new LinkedHashSet<>();
     private String target;
     private QueryCondition condition;
+    private GroupBy groupBy;
     private QueryOrder order;
     private QueryLimit limit;
 
@@ -183,6 +184,35 @@ public class SelectBuilder {
     }
 
     /**
+     * Groups this query by the specified columns, especially useful in combination with aggregate functions.
+     * @param columns The columns to group by
+     * @return This SelectBuilder
+     */
+    public SelectBuilder groupBy(String... columns) {
+        return groupBy(GroupBy.builder()
+                .columns(Arrays.stream(columns).collect(Collectors.toList())));
+    }
+
+    /**
+     * Groups this query by the given group by.
+     * @param groupBy The group by to group by
+     * @return This Select Builder
+     */
+    public SelectBuilder groupBy(GroupBy.Builder groupBy) {
+        return groupBy(groupBy.build());
+    }
+
+    /**
+     * Groups this query by the given group by.
+     * @param groupBy The group by to group by
+     * @return This Select Builder
+     */
+    public SelectBuilder groupBy(GroupBy groupBy) {
+        this.groupBy = groupBy;
+        return this;
+    }
+
+    /**
      * Sets the order in which the data should be returned.
      * @param order The order in which the data should be returned
      * @return This SelectBuilder
@@ -265,6 +295,7 @@ public class SelectBuilder {
                         .map(Join::toString)
                         .collect(Collectors.joining(" ")))
                 .append(condition == null ? "" : " WHERE " + condition)
+                .append(groupBy == null ? "" : " " + groupBy)
                 .append(order == null ? "" : " ORDER BY " + order)
                 .append(limit == null ? "" : " " + limit);
 
@@ -302,6 +333,28 @@ public class SelectBuilder {
      */
     public CompletableFuture<SelectResults> executeAsync() {
         return db.runAsync(this::execute);
+    }
+
+    /**
+     * Counts the rows this select builder will select.
+     * @return The amount of rows counted
+     */
+    public long executeCount() {
+        ArrayList<Pair<CharSequence, String>> columnsCopy = new ArrayList<>(columns);
+        columns.clear();
+        columns.add(new Pair<>(new QueryFunction("COUNT(" + columnsCopy.stream()
+                .map(Pair::getLeft)
+                .map(Database::getAsString)
+                .collect(Collectors.joining(", ")) + ")"), "count"));
+        return execute().get(0).getLong("count");
+    }
+
+    /**
+     * Counts the rows this select builder will select asynchronously.
+     * @return A {@link CompletableFuture} containing the counted rows
+     */
+    public CompletableFuture<Long> executeCountAsync() {
+        return db.runAsync(this::executeCount);
     }
 
     /**
@@ -367,6 +420,20 @@ public class SelectBuilder {
      */
     public QueryOrder getOrder() {
         return order;
+    }
+
+    /**
+     * @return The joins added to this builder
+     */
+    public Set<Join> getJoins() {
+        return Collections.unmodifiableSet(joins);
+    }
+
+    /**
+     * @return The group by statement of this builder
+     */
+    public GroupBy getGroupBy() {
+        return groupBy;
     }
 
     @Override
