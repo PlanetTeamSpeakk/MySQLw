@@ -1,11 +1,8 @@
 package com.ptsmods.mysqlw;
 
-import com.ptsmods.mysqlw.procedure.BlockBuilder;
+import com.ptsmods.mysqlw.procedure.IBlockBuilder;
 import com.ptsmods.mysqlw.procedure.ProcedureParameter;
 import com.ptsmods.mysqlw.procedure.TriggeringEvent;
-import com.ptsmods.mysqlw.procedure.stmt.DelimiterStmt;
-import com.ptsmods.mysqlw.procedure.stmt.block.EndStmt;
-import com.ptsmods.mysqlw.procedure.stmt.misc.BeginStmt;
 import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.query.builder.InsertBuilder;
 import com.ptsmods.mysqlw.query.builder.SelectBuilder;
@@ -1436,9 +1433,9 @@ public class Database {
      * @param table The table to create the trigger on
      * @param event The event which will trigger this trigger
      * @param trigger The statements to execute when this trigger is triggered
-     * @see #createTriggerAsync(String, String, TriggeringEvent, BlockBuilder)
+     * @see #createTriggerAsync(String, String, TriggeringEvent, IBlockBuilder)
      */
-    public void createTrigger(String name, String table, TriggeringEvent event, BlockBuilder trigger) {
+    public void createTrigger(String name, String table, TriggeringEvent event, IBlockBuilder trigger) {
         String query = "DELIMITER $$\n" +
                 "CREATE TRIGGER " +
                 enquote(name) +
@@ -1460,10 +1457,10 @@ public class Database {
      * @param table The table to create the trigger on
      * @param event The event which will trigger this trigger
      * @param trigger The statements to execute when this trigger is triggered
-     * @see #createTrigger(String, String, TriggeringEvent, BlockBuilder)
+     * @see #createTrigger(String, String, TriggeringEvent, IBlockBuilder)
      * @return A CompletableFuture
      */
-    public CompletableFuture<Void> createTriggerAsync(String name, String table, TriggeringEvent event, BlockBuilder trigger) {
+    public CompletableFuture<Void> createTriggerAsync(String name, String table, TriggeringEvent event, IBlockBuilder trigger) {
         return runAsync(() -> createTrigger(name, table, event, trigger));
     }
 
@@ -1472,16 +1469,14 @@ public class Database {
      * @param name The name of the procedure
      * @param parameters The parameters of the procedure
      * @param procedure The statements to execute when this procedure is called
-     * @see #createProcedureAsync(String, ProcedureParameter[], BlockBuilder)
+     * @see #createProcedureAsync(String, ProcedureParameter[], IBlockBuilder)
      */
-    public void createProcedure(String name, ProcedureParameter[] parameters, BlockBuilder procedure) {
+    public void createProcedure(String name, ProcedureParameter[] parameters, IBlockBuilder procedure) {
         StringBuilder builder = new StringBuilder("DELIMITER $$\nCREATE PROCEDURE ").append(name).append('(');
 
         for (ProcedureParameter parameter : parameters) builder.append(parameter);
         builder.append(')');
-        procedure.stmt(0, BeginStmt.begin());
-        procedure.stmt(EndStmt.end("$$"));
-        procedure.stmt(DelimiterStmt.delimiter(";"));
+        builder.append(procedure.wrapForProcedure("$$"));
         execute(builder.toString());
     }
 
@@ -1490,10 +1485,10 @@ public class Database {
      * @param name The name of the procedure
      * @param parameters The parameters of the procedure
      * @param procedure The statements to execute when this procedure is called
-     * @see #createProcedure(String, ProcedureParameter[], BlockBuilder)
+     * @see #createProcedure(String, ProcedureParameter[], IBlockBuilder)
      * @return A CompletableFuture
      */
-    public CompletableFuture<Void> createProcedureAsync(String name, ProcedureParameter[] parameters, BlockBuilder procedure) {
+    public CompletableFuture<Void> createProcedureAsync(String name, ProcedureParameter[] parameters, IBlockBuilder procedure) {
         return runAsync(() -> createProcedure(name, parameters, procedure));
     }
 

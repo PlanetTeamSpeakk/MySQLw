@@ -2,9 +2,6 @@ package com.ptsmods.mysqlw.test;
 
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.SilentSQLException;
-import com.ptsmods.mysqlw.collection.DbList;
-import com.ptsmods.mysqlw.collection.DbMap;
-import com.ptsmods.mysqlw.collection.DbSet;
 import com.ptsmods.mysqlw.query.*;
 import com.ptsmods.mysqlw.table.ColumnType;
 import com.ptsmods.mysqlw.table.ForeignKey;
@@ -25,7 +22,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("ALL")
-@TestMethodOrder(MethodOrderer.Alphanumeric.class)
+@TestMethodOrder(MethodOrderer.MethodName.class)
 class SQLiteTest {
     private static final UUID testId = UUID.nameUUIDFromBytes("MySQLw".getBytes(StandardCharsets.UTF_8));
     private static Database db = null;
@@ -70,47 +67,6 @@ class SQLiteTest {
     @Test
     void connect() {
         assertDoesNotThrow(this::getDb);
-    }
-
-    @Test
-    void testMap() throws SQLException {
-        DbMap<String, Integer> map = DbMap.getMap(getDb(), "testmap", String.class, Integer.class);
-        map.clear();
-        assertEquals(0, map.size());
-        map.put("testkey", 42);
-        assertTrue(map.containsKey("testkey"));
-        assertEquals(42, map.get("testkey"));
-        assertEquals(1, map.size());
-        map.clear();
-        assertTrue(map.isEmpty());
-    }
-
-    @Test
-    void testList() throws SQLException {
-        DbList<String> list = DbList.getList(getDb(), "testlist", String.class);
-        assertEquals(0, list.size());
-        list.add("Hello");
-        assertEquals(1, list.size());
-        assertEquals("Hello", list.get(0));
-        assertTrue(list.contains("Hello"));
-        list.addAll(Arrays.asList("test", "test2"));
-        assertTrue(list.containsAll(Arrays.asList("test", "test2")));
-        list.clear();
-        assertTrue(list.isEmpty());
-    }
-
-    @Test
-    void testSet() throws SQLException {
-        DbSet<String> set = DbSet.getSet(getDb(), "testset", String.class);
-        assertEquals(0, set.size());
-        set.add("hey");
-        set.add("Hello");
-        assertEquals(2, set.size());
-        assertTrue(set.contains("hey"));
-        set.addAll(Arrays.asList("test", "test2"));
-        assertTrue(set.containsAll(Arrays.asList("test", "test2")));
-        set.clear();
-        assertTrue(set.isEmpty());
     }
 
     @Test

@@ -47,7 +47,7 @@ public class SelectBuilder {
     }
 
     /**
-     * Create a new SelectBuilder for use in {@link com.ptsmods.mysqlw.procedure.BlockBuilder BlockBuilder}s.
+     * Create a new SelectBuilder for use in {@link com.ptsmods.mysqlw.procedure.IBlockBuilder BlockBuilder}s.
      * @param table The table to select from
      * @return A new SelectBuilder
      */
@@ -56,7 +56,7 @@ public class SelectBuilder {
     }
 
     /**
-     * Create a new SelectBuilder for use in {@link com.ptsmods.mysqlw.procedure.BlockBuilder BlockBuilder}s.
+     * Create a new SelectBuilder for use in {@link com.ptsmods.mysqlw.procedure.IBlockBuilder BlockBuilder}s.
      * @param select The query to select from
      * @return A new SelectBuilder
      */

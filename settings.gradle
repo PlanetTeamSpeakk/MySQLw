@@ -1,2 +1,6 @@
 rootProject.name = 'MySQLw'
+include 'collection'
+include 'procedure'
 
+findProject(":collection").name = "mysqlw-collection"
+findProject(":procedure").name = "mysqlw-procedure"

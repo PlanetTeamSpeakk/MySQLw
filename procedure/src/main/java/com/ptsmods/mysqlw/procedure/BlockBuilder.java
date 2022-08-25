@@ -2,6 +2,7 @@ package com.ptsmods.mysqlw.procedure;
 
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.procedure.stmt.DeclaringStmt;
+import com.ptsmods.mysqlw.procedure.stmt.DelimiterStmt;
 import com.ptsmods.mysqlw.procedure.stmt.RawStmt;
 import com.ptsmods.mysqlw.procedure.stmt.Statement;
 import com.ptsmods.mysqlw.procedure.stmt.block.EndStmt;
@@ -29,7 +30,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public final class BlockBuilder {
+public final class BlockBuilder implements IBlockBuilder {
     private final Database.RDBMS type;
     private final List<Statement> statements = new ArrayList<>();
 
@@ -46,7 +47,9 @@ public final class BlockBuilder {
     }
 
     public BlockBuilder stmt(int index, Statement statement) {
-        if (statement instanceof DeclaringStmt && !statements.stream().allMatch(stmt -> stmt instanceof DeclaringStmt || stmt instanceof BeginStmt))
+        if (statement instanceof DeclaringStmt && !statements.stream()
+                .limit(index)
+                .allMatch(stmt -> stmt instanceof DeclaringStmt || stmt instanceof BeginStmt))
             throw new IllegalArgumentException("All declaring statements must be at the top of the block.");
 
         statements.add(index, statement);
@@ -177,5 +180,21 @@ public final class BlockBuilder {
 
     public String buildString() {
         return buildBlock().toString();
+    }
+
+    @Override
+    public BlockBuilder clone() {
+        BlockBuilder builder = new BlockBuilder(type);
+        builder.statements.addAll(statements);
+        return builder;
+    }
+
+    @Override
+    public IBlockBuilder wrapForProcedure(String delimiter) {
+        BlockBuilder procedure = clone();
+        procedure.stmt(0, BeginStmt.begin());
+        procedure.stmt(EndStmt.end("$$"));
+        procedure.stmt(DelimiterStmt.delimiter(";"));
+        return procedure;
     }
 }

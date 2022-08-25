@@ -8,19 +8,42 @@ plugins {
 }
 
 group 'com.ptsmods'
-version '1.9'
+version '1.9.1'
 
-repositories {
-    mavenLocal()
-    mavenCentral()
+allprojects {
+    apply plugin: "java"
+    apply plugin: "com.adarshr.test-logger"
+    apply plugin: "io.freefair.lombok"
+
+    dependencies {
+        implementation "org.jetbrains:annotations:23.0.0"
+        testImplementation "org.junit.jupiter:junit-jupiter-api:5.9.0"
+        testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.9.0"
+    }
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+subprojects {
+    group "com.ptsmods.mysqlw"
+    version project(":").version
+
+    dependencies {
+        compileOnly project(":")
+        testCompileOnly project(":")
+    }
 }
 
 dependencies {
     implementation group: 'mysql', name: 'mysql-connector-java', version: '8.0.30', optional
     implementation group: 'org.xerial', name: 'sqlite-jdbc', version: '3.39.2.0', optional
-    implementation 'org.jetbrains:annotations:23.0.0'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
 }
 
 tasks.withType(JavaCompile) {
@@ -61,7 +84,7 @@ testlogger {
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        mavenJavaMain(MavenPublication) {
             artifactId = "mysqlw"
             from components.java
 
@@ -92,10 +115,98 @@ publishing {
                 }
             }
         }
+        mavenJavaCollection(MavenPublication) {
+            artifactId = "mysqlw-collection"
+            from project("mysqlw-collection").components.java
+
+            pom {
+                name = 'MySQLw'
+                description = 'A module for MySQLw to use Java collections with databases.'
+                url = 'https://github.com/PlanetTeamSpeakk/MySQLw'
+
+                scm {
+                    connection = 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    developerConnection = 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    url = 'https://github.com/PlanetTeamSpeakk/MySQLw'
+                }
+
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://raw.githubusercontent.com/PlanetTeamSpeakk/MySQLw/main/LICENSE'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'PlanetTeamSpeak'
+                        name = 'PlanetTeamSpeak'
+                        email = 'PlanetTeamSpeakk@users.noreply.github.com'
+                    }
+                }
+
+                // Add the root project as a dependency. (maven-publish does not know what to do with implementation project(":"))
+                // This probably is not the best way to do this, but it's the only way I could come up with.
+                withXml {
+                    def depsNode = asNode().get("dependencies").get(0)
+                    def depNode = depsNode.appendNode("dependency")
+
+                    depNode.appendNode("groupId", "com.ptsmods")
+                    depNode.appendNode("artifactId", "mysqlw")
+                    depNode.appendNode("version", project.rootProject.version)
+                    depNode.appendNode("scope", "runtime")
+                }
+            }
+        }
+        mavenJavaProcedure(MavenPublication) {
+            artifactId = "mysqlw-procedure"
+            from project("mysqlw-procedure").components.java
+
+            pom {
+                name = 'MySQLw'
+                description = 'A module for MySQLw to work with and create procedures.'
+                url = 'https://github.com/PlanetTeamSpeakk/MySQLw'
+
+                scm {
+                    connection = 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    developerConnection = 'scm:git:git://github.com/PlanetTeamSpeakk/MySQLw.git'
+                    url = 'https://github.com/PlanetTeamSpeakk/MySQLw'
+                }
+
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://raw.githubusercontent.com/PlanetTeamSpeakk/MySQLw/main/LICENSE'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'PlanetTeamSpeak'
+                        name = 'PlanetTeamSpeak'
+                        email = 'PlanetTeamSpeakk@users.noreply.github.com'
+                    }
+                }
+
+                withXml {
+                    def depsNode = asNode().get("dependencies").get(0)
+                    def depNode = depsNode.appendNode("dependency")
+
+                    depNode.appendNode("groupId", "com.ptsmods")
+                    depNode.appendNode("artifactId", "mysqlw")
+                    depNode.appendNode("version", project.rootProject.version)
+                    depNode.appendNode("scope", "runtime")
+                }
+            }
+        }
     }
 
     // Credentials are gotten from global gradle.properties file (user home/.gradle/gradle.properties)
     repositories {
+        maven {
+            url = "file:///${project.rootProject.buildDir}/repo"
+            name = "MavenLocal"
+        }
         maven {
             // https://oss.sonatype.org
             def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
@@ -120,5 +231,7 @@ publishing {
 }
 
 signing {
-    sign publishing.publications.mavenJava
+    sign publishing.publications.mavenJavaMain
+    sign publishing.publications.mavenJavaCollection
+    sign publishing.publications.mavenJavaProcedure
 }
