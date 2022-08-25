@@ -1389,6 +1389,10 @@ public class Database {
      * @see #modifyColumnAsync(String, String, ColumnStructure)
      */
     public void modifyColumn(String table, String name, ColumnStructure<?> structure) {
+        if (getType() == RDBMS.SQLite)
+            throw new IllegalStateException("SQLite does not support the modification of columns. " +
+                    "Consider a combination of addColumn and dropColumn instead or follow https://stackoverflow.com/a/4007086.");
+
         execute("ALTER TABLE " + engrave(table) + " MODIFY COLUMN " +
                 engrave(name) + " " + structure.buildTypeString(getType()));
     }
