@@ -3,6 +3,7 @@ package com.ptsmods.mysqlw.query;
 import com.ptsmods.mysqlw.Pair;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -70,6 +71,25 @@ public class QueryConditions extends QueryCondition {
     }
 
     /**
+     * Adds a QueryCondition with the {@link ConditionKeyword#XOR XOR} keyword to the end.
+     * @param condition The actual condition
+     * @return These QueryConditions for chaining.
+     */
+    public QueryConditions xor(QueryCondition condition) {
+        return add(ConditionKeyword.XOR, condition);
+    }
+
+    /**
+     * Adds a QueryCondition with the {@link ConditionKeyword#XOR XOR} keyword at a specific index.
+     * @param index The index to add this QueryCondition at
+     * @param condition The actual condition
+     * @return These QueryConditions for chaining.
+     */
+    public QueryConditions xor(int index, QueryCondition condition) {
+        return add(index, ConditionKeyword.XOR, condition);
+    }
+
+    /**
      * Adds a QueryCondition with a specific keyword to the end.
      * @param keyword The keyword this QueryCondition uses
      * @param condition The actual condition
@@ -90,6 +110,13 @@ public class QueryConditions extends QueryCondition {
     public QueryConditions add(int index, ConditionKeyword keyword, QueryCondition condition) {
         conditions.add(index, new Pair<>(keyword, condition));
         return this;
+    }
+
+    /**
+     * @return The conditions this QueryConditions object contains.
+     */
+    public List<Pair<ConditionKeyword, QueryCondition>> getConditions() {
+        return Collections.unmodifiableList(conditions);
     }
 
     @Override
@@ -114,7 +141,11 @@ public class QueryConditions extends QueryCondition {
         /**
          * Implies that either the previous QueryConditions or the next one must be true to return a row.
          */
-        OR
+        OR,
+        /**
+         * Implies that either the previous QueryConditions or the next one must be true, but not both to return a row.
+         */
+        XOR
     }
 
 }
