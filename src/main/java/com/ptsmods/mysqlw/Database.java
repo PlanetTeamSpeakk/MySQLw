@@ -1340,8 +1340,12 @@ public class Database {
      * @see #createIndexAsync(String, TableIndex)
      */
     public void createIndex(String table, TableIndex index) {
-        if (index.getName() == null || index.getName().isEmpty()) throw new IllegalArgumentException("When creating a standalone index, the index must have a name.");
-        execute("CREATE " + index.toString(false) + "ON " + engrave(table) + " (" + engrave(index.getColumn()) + ");");
+        if (index.getName() == null || index.getName().isEmpty())
+            throw new IllegalArgumentException("When creating a standalone index, the index must have a name.");
+
+        execute("CREATE " + index.toString(false) + "ON " + engrave(table) + " (" + index.getColumns().stream()
+                .map(Database::engrave)
+                .collect(Collectors.joining(", ")) + ");");
     }
 
     /**
