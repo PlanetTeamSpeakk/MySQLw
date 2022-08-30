@@ -9,6 +9,7 @@ import com.ptsmods.mysqlw.query.builder.SelectBuilder;
 import com.ptsmods.mysqlw.table.ColumnStructure;
 import com.ptsmods.mysqlw.table.TableIndex;
 import com.ptsmods.mysqlw.table.TablePreset;
+import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -1186,7 +1187,7 @@ public class Database {
      * @return A boolean value which can mean anything.
      * @see #executeAsync(String)
      */
-    public boolean execute(String query) throws SilentSQLException {
+    public boolean execute(@Language("SQL") String query) throws SilentSQLException {
         try (Statement statement = createStatement()) {
             return statement.execute(query);
         } catch (SQLException e) {
@@ -1202,7 +1203,7 @@ public class Database {
      * @return A boolean value which can mean anything.
      * @see #execute(String)
      */
-    public CompletableFuture<Boolean> executeAsync(String query) {
+    public CompletableFuture<Boolean> executeAsync(@Language("SQL") String query) {
         return runAsync(() -> execute(query));
     }
 
@@ -1212,7 +1213,7 @@ public class Database {
      * @return An integer value often denoting the amount of rows affected.
      * @see #executeUpdateAsync(String)
      */
-    public int executeUpdate(String query) throws SilentSQLException {
+    public int executeUpdate(@Language("SQL") String query) throws SilentSQLException {
         try (Statement statement = createStatement()) {
             return statement.executeUpdate(query);
         } catch (SQLException e) {
@@ -1227,7 +1228,7 @@ public class Database {
      * @return An integer value often denoting the amount of rows affected.
      * @see #executeUpdate(String)
      */
-    public CompletableFuture<Integer> executeUpdateAsync(String query) {
+    public CompletableFuture<Integer> executeUpdateAsync(@Language("SQL") String query) {
         return runAsync(() -> executeUpdate(query));
     }
 
@@ -1239,7 +1240,7 @@ public class Database {
      * @return The ResultSet containing all the data this query returned.
      * @see #executeQueryAsync(String)
      */
-    public ResultSet executeQuery(String query) throws SilentSQLException {
+    public ResultSet executeQuery(@Language("SQL") String query) throws SilentSQLException {
         try {
             Statement statement = createStatement();
             ResultSet set = statement.executeQuery(query);
@@ -1260,7 +1261,7 @@ public class Database {
      * @return The ResultSet containing all the data this query returned.
      * @see #executeQuery(String)
      */
-    public CompletableFuture<ResultSet> executeQueryAsync(String query) {
+    public CompletableFuture<ResultSet> executeQueryAsync(@Language("SQL") String query) {
         return runAsync(() -> executeQuery(query));
     }
 
@@ -1318,7 +1319,7 @@ public class Database {
      * @see #getCreateQueryAsync(String)
      */
     public String getCreateQuery(String table) {
-        String query = type == RDBMS.SQLite ? "SELECT sql FROM sqlite_master WHERE name=" + enquote(table) + ";" : "SHOW CREATE TABLE " + engrave(table) + ";";
+        @Language("SQL") String query = type == RDBMS.SQLite ? "SELECT sql FROM sqlite_master WHERE name=" + enquote(table) + ";" : "SHOW CREATE TABLE " + engrave(table) + ";";
         SelectResults results = SelectResults.parse(this, table, executeQuery(query), type == RDBMS.SQLite ? QueryCondition.equals("name", table) : null, null, null);
         return results.get(0).get(results.getColumns().get(0)).toString();
     }
@@ -1440,7 +1441,7 @@ public class Database {
      * @see #createTriggerAsync(String, String, TriggeringEvent, IBlockBuilder)
      */
     public void createTrigger(String name, String table, TriggeringEvent event, IBlockBuilder trigger) {
-        String query = "DELIMITER $$\n" +
+        @Language("SQL") String query = "DELIMITER $$\n" +
                 "CREATE TRIGGER " +
                 enquote(name) +
                 event.name().replace('_', ' ') +
@@ -1563,10 +1564,11 @@ public class Database {
      * Gets a {@link CharSequence} as a String, in case of a {@link QueryFunction} this returns its function,
      * in case of an asterisk this returns an asterisk, in all other cases this returns the given {@link CharSequence} but surrounded by graves.
      * @param seq The sequence to get as String.
-     * @return A String, either a {@link QueryFunction}'s function or the given {@link CharSequence} surrounded by graves.
+     * @return A String, either a {@link QueryFunction}'s function, a built {@link SelectBuilder} or the given {@link CharSequence} surrounded by graves.
      */
     public static String getAsString(CharSequence seq) {
-        return seq instanceof QueryFunction ? ((QueryFunction) seq).getFunction() : "*".contentEquals(seq) ? String.valueOf(seq) : engrave(String.valueOf(seq));
+        return seq instanceof QueryFunction ? ((QueryFunction) seq).getFunction() : seq instanceof SelectBuilder ? ((SelectBuilder) seq).buildQuery() :
+                "*".contentEquals(seq) ? String.valueOf(seq) : engrave(String.valueOf(seq));
     }
 
     /**

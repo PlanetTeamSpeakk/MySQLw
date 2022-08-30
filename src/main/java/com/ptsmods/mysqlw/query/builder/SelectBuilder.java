@@ -3,13 +3,14 @@ package com.ptsmods.mysqlw.query.builder;
 import com.ptsmods.mysqlw.Database;
 import com.ptsmods.mysqlw.Pair;
 import com.ptsmods.mysqlw.query.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-public class SelectBuilder {
+public class SelectBuilder implements CharSequence {
     private final Database db;
     private final String selectionTarget;
     private final List<Pair<CharSequence, String>> columns = new ArrayList<>();
@@ -329,7 +330,7 @@ public class SelectBuilder {
 
     /**
      * Asynchronously executes the built query and parses it into an instance of {@link SelectResults}.
-     * @return A {@link CompletableFuture} contain the parsed results
+     * @return A {@link CompletableFuture} containing the parsed results
      */
     public CompletableFuture<SelectResults> executeAsync() {
         return db.runAsync(this::execute);
@@ -469,12 +470,28 @@ public class SelectBuilder {
     @Override
     public SelectBuilder clone() {
         SelectBuilder builder = create(db, selectionTarget);
-        for (Pair<CharSequence, String> column : columns) builder.select(column.getLeft(), column.getRight());
+        builder.columns.addAll(columns);
         builder.into(target);
         builder.where(condition);
         builder.limit(limit);
         builder.order(order);
 
         return builder;
+    }
+
+    @Override
+    public int length() {
+        return buildQuery().length();
+    }
+
+    @Override
+    public char charAt(int index) {
+        return buildQuery().charAt(index);
+    }
+
+    @NotNull
+    @Override
+    public CharSequence subSequence(int start, int end) {
+        return buildQuery().substring(start, end);
     }
 }
