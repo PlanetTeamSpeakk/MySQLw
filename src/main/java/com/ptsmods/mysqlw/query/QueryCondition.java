@@ -261,7 +261,7 @@ public abstract class QueryCondition {
         return QueryConditions.create(new QueryCondition() {
             @Override
             public String toString() {
-                return arg;
+                return Database.engrave(arg);
             }
         });
     }
