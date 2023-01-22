@@ -1293,7 +1293,7 @@ public class Database {
      */
     public boolean tableExists(String name) throws SilentSQLException {
         try {
-            ResultSet set = con.getMetaData().getTables(null, null, name, null);
+            ResultSet set = con.getMetaData().getTables(this.getName(), null, name, null);
             boolean b = set.next();
             set.close();
             return b;
